@@ -1,0 +1,1427 @@
+<!DOCTYPE html>
+<html lang="en" data-bs-theme="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Vinco City Supermarket - vincocitysupermarket.com</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css">
+    <style>
+        body { min-height: 100vh; display: flex; flex-direction: column; margin: 0; }
+        #auth-wrapper { position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; z-index: 1050; display: flex; justify-content: center; align-items: center; }
+        #app-wrapper { display: none; width: 100vw; min-height: 100vh; }
+        #sidebar { width: 260px; min-height: 100vh; position: fixed; top: 0; left: 0; z-index: 100; transition: all 0.3s; }
+        #content { margin-left: 260px; width: calc(100% - 260px); transition: all 0.3s; padding: 20px; }
+        @media (max-width: 768px) {
+            #sidebar { margin-left: -260px; }
+            #sidebar.active { margin-left: 0; }
+            #content { margin-left: 0; width: 100%; }
+        }
+        .receipt-border { border-top: 1px dashed currentColor; border-bottom: 1px dashed currentColor; padding: 5px 0; }
+        .profile-trigger { cursor: pointer; transition: opacity 0.2s; }
+        .profile-trigger:hover { opacity: 0.8; }
+
+        @keyframes subtlePulse {
+            0% { transform: scale(1); opacity: 1; }
+            50% { transform: scale(1.05); opacity: 0.85; }
+            100% { transform: scale(1); opacity: 1; }
+        }
+        .badge-pulse {
+            animation: subtlePulse 1.8s infinite ease-in-out;
+        }
+    </style>
+</head>
+<body class="bg-body text-body">
+
+    <!-- Authentication & Account Creation Wrapper -->
+    <div id="auth-wrapper" class="bg-body">
+        <div class="card shadow p-4" style="width: 420px;">
+            <div class="text-center mb-4">
+                <i class="bi bi-shop fs-1 text-primary"></i>
+                <h3 class="mt-2">Vinco City Supermarket</h3>
+                <p class="text-muted small">vincocitysupermarket.com</p>
+            </div>
+
+            <!-- Login Window -->
+            <div id="login-window">
+                <form onsubmit="handleLogin(event)">
+                    <div class="mb-3">
+                        <label class="form-label">Username</label>
+                        <input type="text" id="login-username" class="form-control" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Password</label>
+                        <div class="input-group">
+                            <input type="password" id="login-password" class="form-control" required>
+                            <button type="button" class="btn btn-outline-secondary" onclick="togglePasswordVisibility()"><i class="bi bi-eye" id="eye-icon"></i></button>
+                        </div>
+                    </div>
+                    <div class="d-flex justify-content-between align-items-center mb-3">
+                        <div class="form-check">
+                            <input type="checkbox" class="form-check-input" id="remember-me">
+                            <label class="form-check-label small" for="remember-me">Remember Password</label>
+                        </div>
+                        <a href="#" class="small text-decoration-none" onclick="triggerForgotPassword()">Forgot Password?</a>
+                    </div>
+                    <button type="submit" class="btn btn-primary w-100 mb-2">Login</button>
+                    <button type="button" class="btn btn-outline-secondary w-100 btn-sm" onclick="switchAuthRoute('register')">Create Employee Account</button>
+                </form>
+            </div>
+
+            <!-- Standalone Employee Self-Registration Route Window -->
+            <div id="register-window" style="display: none;">
+                <form onsubmit="submitEmployeeSelfRegistration(event)">
+                    <div class="d-flex align-items-center mb-3">
+                        <button type="button" class="btn btn-sm btn-outline-secondary me-2" onclick="switchAuthRoute('login')"><i class="bi bi-arrow-left"></i></button>
+                        <h5 class="mb-0">Employee Self-Registration</h5>
+                    </div>
+                    <p class="text-muted small mb-3">Create your account credentials below. An administrator must verify and approve your request before you can log in.</p>
+                    
+                    <div class="mb-3">
+                        <label class="form-label">Full Name / Display Name</label>
+                        <input type="text" id="reg-fullname" class="form-control" required placeholder="e.g. John Doe">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Desired Username</label>
+                        <input type="text" id="reg-username" class="form-control" required placeholder="e.g. johndoe">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Password</label>
+                        <input type="password" id="reg-password" class="form-control" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Desired Role</label>
+                        <select id="reg-role" class="form-select" required>
+                            <option value="cashier">Cashier</option>
+                            <option value="storekeeper">Storekeeper</option>
+                            <option value="manager">Manager</option>
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Fallback Avatar Emoji</label>
+                        <input type="text" id="reg-avatar" class="form-control" value="🧑‍💼" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Profile Picture Placeholder (Optional)</label>
+                        <input type="file" id="reg-image-file" class="form-control" accept="image/*" onchange="previewUserImage(event, 'reg')">
+                        <input type="hidden" id="reg-image-data">
+                    </div>
+                    <button type="submit" class="btn btn-success w-100 mb-2">Submit Account Request</button>
+                    <button type="button" class="btn btn-link w-100 btn-sm text-decoration-none" onclick="switchAuthRoute('login')">Already have an account? Login</button>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Main Application Wrapper -->
+    <div id="app-wrapper" class="d-flex bg-body text-body">
+        <nav id="sidebar" class="bg-black text-white p-3 d-flex flex-column">
+            <div class="d-flex align-items-center mb-4 pb-2 border-bottom border-secondary profile-trigger" onclick="openProfileModal()" title="Click to edit your profile">
+                <div id="user-avatar-display-container" class="me-2">
+                    <span id="user-avatar-display" class="fs-3">👤</span>
+                </div>
+                <div class="overflow-hidden flex-grow-1">
+                    <h6 style="color: #28a745;" class="mb-0 text-truncate" id="sidebar-username">Admin</h6>
+                    <small class="text-muted d-flex align-items-center" id="sidebar-role">Master Admin<i class="bi bi-pencil-square ms-1 small"></i></small>
+                </div>
+            </div>
+            <ul class="nav nav-pills flex-column mb-auto">
+                <li class="nav-item mb-1"><a href="#" class="nav-link text-white active" onclick="switchView('pos', this)"><i class="bi bi-cash-stack me-2"></i> POS & Sales</a></li>
+                <li class="nav-item mb-1 restricted-nav" data-allowed="admin,manager,storekeeper"><a href="#" class="nav-link text-white" onclick="switchView('inventory', this)"><i class="bi bi-box-seam me-2"></i> Inventory</a></li>
+                <li class="nav-item mb-1 restricted-nav" data-allowed="admin,manager,storekeeper"><a href="#" class="nav-link text-white" onclick="switchView('alerts', this)"><i class="bi bi-bell me-2"></i> Alerts & Expiry</a></li>
+                <li class="nav-item mb-1 restricted-nav" data-allowed="admin,manager"><a href="#" class="nav-link text-white" onclick="switchView('reports', this)"><i class="bi bi-graph-up me-2"></i> Reports & Profits</a></li>
+                <li class="nav-item mb-1 restricted-nav" data-allowed="admin,manager"><a href="#" class="nav-link text-white" onclick="switchView('employees', this)"><i class="bi bi-people me-2"></i> Employees <span id="pending-badge" class="badge bg-danger ms-1" style="display:none;">0</span></a></li>
+                <li class="nav-item mb-1 restricted-nav" data-allowed="admin"><a href="#" class="nav-link text-white" onclick="switchView('settings', this)"><i class="bi bi-gear me-2"></i> Settings & Backup</a></li>
+            </ul>
+            <div class="mt-auto pt-3 border-top border-secondary">
+                <button class="btn btn-outline-light btn-sm w-100 mb-2" onclick="toggleTheme()"><i class="bi bi-circle-half me-1"></i> Toggle Theme</button>
+                <button class="btn btn-danger btn-sm w-100" onclick="handleLogout()"><i class="bi bi-box-arrow-right me-1"></i> Logout</button>
+            </div>
+        </nav>
+
+        <div id="content">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <button class="btn btn-dark d-md-none" onclick="toggleSidebar()"><i class="bi bi-list"></i></button>
+                <h4 id="view-title">POS Terminal</h4>
+                <div>
+                    <span class="badge bg-success me-2" id="sync-status">Synced</span>
+                    <button class="btn btn-outline-primary btn-sm" onclick="triggerSync()"><i class="bi bi-arrow-repeat"></i> Sync Now</button>
+                </div>
+            </div>
+
+            <!-- POS View with Split Layout -->
+            <div id="view-pos" class="app-view">
+                <div class="row">
+                    <!-- Products Column -->
+                    <div class="col-lg-8 mb-3">
+                        <div class="input-group mb-3">
+                            <input type="text" id="pos-search" class="form-control" placeholder="Scan Barcode or Search by Name/SKU and press Enter..." oninput="filterPOSProducts()" onkeydown="handlePOSKeydown(event)">
+                            <button class="btn btn-outline-primary" onclick="startCameraScan('pos')"><i class="bi bi-camera"></i> Scan</button>
+                        </div>
+                        <div id="pos-grid" class="row g-2" style="max-height: 75vh; overflow-y: auto;"></div>
+                    </div>
+
+                    <!-- Permanent Visible Cart Column -->
+                    <div class="col-lg-4">
+                        <div class="card shadow-sm p-3 sticky-top" style="top: 20px;">
+                            <h5 class="mb-3 border-bottom pb-2"><i class="bi bi-cart3 me-2"></i> Current Cart</h5>
+                            <ul id="persistent-cart-list" class="list-group mb-3" style="max-height: 40vh; overflow-y: auto;">
+                                <li class="list-group-item text-center text-muted small py-4">Cart is empty</li>
+                            </ul>
+                            <div class="d-flex justify-content-between align-items-center mb-3 fw-bold fs-5">
+                                <span>Total:</span>
+                                <span id="persistent-cart-total" class="text-success">₦0.00</span>
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label small">Payment Method</label>
+                                <select id="payment-method" class="form-select form-select-sm">
+                                    <option value="Cash">Cash</option>
+                                    <option value="POS">POS Terminal</option>
+                                    <option value="Transfer">Bank Transfer</option>
+                                    <option value="Both (Cash & Transfer)">Both (Cash & Transfer)</option>
+                                </select>
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label small">Customer Email for Receipt</label>
+                                <input type="email" id="customer-email" class="form-control form-control-sm" placeholder="customer@example.com">
+                            </div>
+                            <button class="btn btn-success w-100 py-2" onclick="completeSale()"><i class="bi bi-check-circle me-1"></i> Complete Sale & Print</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Inventory View -->
+            <div id="view-inventory" class="app-view" style="display: none;">
+                <div class="d-flex justify-content-between mb-3 flex-wrap gap-2">
+                    <div class="input-group w-50">
+                        <input type="text" id="inv-search" class="form-control" placeholder="Search Inventory..." oninput="renderInventoryTable()">
+                        <button class="btn btn-outline-primary" onclick="startCameraScan('inv')"><i class="bi bi-camera"></i></button>
+                    </div>
+                    <div>
+                        <button class="btn btn-primary" onclick="openProductModal()"><i class="bi bi-plus-lg"></i> Add Product</button>
+                    </div>
+                </div>
+                <div class="table-responsive rounded shadow-sm p-2">
+                    <table class="table table-hover align-middle">
+                        <thead>
+                            <tr>
+                                <th>Image</th>
+                                <th>Barcode</th>
+                                <th>Name</th>
+                                <th>Category</th>
+                                <th>SKU</th>
+                                <th>Stock / Limit</th>
+                                <th>Cost</th>
+                                <th>Selling</th>
+                                <th>Expiry</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="inventory-table-body"></tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Alerts View -->
+            <div id="view-alerts" class="app-view" style="display: none;">
+                <div class="row">
+                    <div class="col-md-6">
+                        <div class="card shadow-sm p-3 mb-3">
+                            <h5 class="text-danger"><i class="bi bi-exclamation-triangle"></i> Expired & Close to Expiry</h5>
+                            <ul id="expiry-alert-list" class="list-group list-group-flush"></ul>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="card shadow-sm p-3">
+                            <h5 class="text-warning"><i class="bi bi-graph-down"></i> Low Stock Threshold Alerts</h5>
+                            <ul id="stock-alert-list" class="list-group list-group-flush"></ul>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Reports View -->
+            <div id="view-reports" class="app-view" style="display: none;">
+                <div class="card shadow-sm p-4 mb-3">
+                    <div class="d-flex justify-content-between align-items-center mb-3">
+                        <h5>Sales & Profits Summary</h5>
+                        <div>
+                            <button class="btn btn-outline-danger btn-sm me-2" onclick="clearSalesData('daily')">Clear Daily</button>
+                            <button class="btn btn-outline-danger btn-sm me-2" onclick="clearSalesData('weekly')">Clear Weekly</button>
+                            <button class="btn btn-outline-danger btn-sm me-2" onclick="clearSalesData('monthly')">Clear Monthly</button>
+                            <button class="btn btn-outline-danger btn-sm" onclick="clearSalesData('yearly')">Clear Yearly</button>
+                        </div>
+                    </div>
+                    <div id="reports-content"></div>
+                </div>
+            </div>
+
+            <!-- Employees View -->
+            <div id="view-employees" class="app-view" style="display: none;">
+                <div class="card shadow-sm p-4 mb-4">
+                    <h5 class="text-primary mb-3"><i class="bi bi-person-plus"></i> Pending Account Verification Requests</h5>
+                    <div id="pending-requests-container">
+                        <p class="text-muted small">No pending registration requests at the moment.</p>
+                    </div>
+                </div>
+                <div class="card shadow-sm p-4">
+                    <div class="d-flex justify-content-between align-items-center mb-3">
+                        <h5 class="mb-0">Active Employee Accounts</h5>
+                        <button class="btn btn-primary btn-sm" onclick="openUserModal()"><i class="bi bi-person-plus"></i> Add Employee User</button>
+                    </div>
+                    <div class="table-responsive">
+                        <table class="table align-middle">
+                            <thead><tr><th>Picture / Avatar</th><th>Name</th><th>Username</th><th>Password</th><th>Role</th><th>Actions</th></tr></thead>
+                            <tbody id="employee-table-body"></tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Settings View -->
+            <div id="view-settings" class="app-view" style="display: none;">
+                <div class="card shadow-sm p-4 mb-3">
+                    <h5>System Configurations & Backup</h5>
+                    <div class="mb-3">
+                        <label class="form-label">Supermarket Email Account</label>
+                        <input type="email" id="system-email" class="form-control" value="supermarketvincocity@gmail.com">
+                        <button class="btn btn-primary btn-sm mt-2" onclick="saveSystemEmail()">Save Email</button>
+                    </div>
+                    <hr>
+                    <div class="mb-3">
+                        <label class="form-label">Database Backup & Recovery</label>
+                        <div>
+                            <button class="btn btn-success btn-sm me-2" onclick="exportBackup()"><i class="bi bi-download"></i> Download Backup</button>
+                            <input type="file" id="backup-file" class="d-none" onchange="importBackup(event)">
+                            <button class="btn btn-warning btn-sm" onclick="document.getElementById('backup-file').click()"><i class="bi bi-upload"></i> Restore Backup</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Product Modal -->
+    <div class="modal fade" id="productModal" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <form id="product-form" onsubmit="saveProduct(event)">
+                    <div class="modal-header">
+                        <h5 class="modal-title">Product Details</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                    </div>
+                    <div class="modal-body row g-2">
+                        <input type="hidden" id="prod-id">
+                        <div class="col-md-8">
+                            <label class="form-label">Barcode (Numbers Only)</label>
+                            <input type="text" id="prod-barcode" class="form-control" placeholder="Leave blank or generate" inputmode="numeric" oninput="this.value = this.value.replace(/[^0-9]/g, '')">
+                        </div>
+                        <div class="col-md-4 d-flex align-items-end">
+                            <button type="button" class="btn btn-outline-secondary w-100 btn-sm mb-0 py-2" onclick="generateSingleBarcode()"><i class="bi bi-upc-scan me-1"></i> Generate</button>
+                        </div>
+                        <div class="col-md-6"><label class="form-label">Name</label><input type="text" id="prod-name" class="form-control" required></div>
+                        <div class="col-md-6">
+                            <label class="form-label">Category</label>
+                            <select id="prod-category" class="form-select" required>
+                                <option value="Groceries">Groceries</option>
+                                <option value="Beverages">Beverages</option>
+                                <option value="Drinks">Drinks</option>
+                                <option value="Household Utensils">Household Utensils</option>
+                                <option value="Body Care">Body Care</option>
+                                <option value="Baby Care">Baby Care</option>
+                            </select>
+                        </div>
+                        <div class="col-md-6"><label class="form-label">SKU Number</label><input type="text" id="prod-sku" class="form-control" required></div>
+                        <div class="col-md-6"><label class="form-label">Stock Available</label><input type="number" id="prod-stock" class="form-control" required></div>
+                        <div class="col-md-6"><label class="form-label">Stock Limit Threshold</label><input type="number" id="prod-limit" class="form-control" required></div>
+                        <div class="col-md-6"><label class="form-label">Cost Price (₦)</label><input type="number" step="0.01" id="prod-cost" class="form-control"></div>
+                        <div class="col-md-6"><label class="form-label">Selling Price (₦)</label><input type="number" step="0.01" id="prod-price" class="form-control"></div>
+                        <div class="col-md-6"><label class="form-label">Expiry Date</label><input type="date" id="prod-expiry" class="form-control"></div>
+                        <div class="col-md-6">
+                            <label class="form-label">Product Image</label>
+                            <input type="file" id="prod-image-file" class="form-control" accept="image/*" onchange="previewImage(event)">
+                            <input type="hidden" id="prod-image-data">
+                        </div>
+                    </div>
+                    <div class="modal-footer"><button type="submit" class="btn btn-primary">Save Product</button></div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- User Account Modal (Add / Edit Employee User) -->
+    <div class="modal fade" id="userModal" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <form id="user-form" onsubmit="saveUserAccount(event)">
+                    <div class="modal-header">
+                        <h5 class="modal-title" id="user-modal-title">Employee Account Settings</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                    </div>
+                    <div class="modal-body row g-2">
+                        <input type="hidden" id="usr-original-username">
+                        <div class="col-md-12"><label class="form-label">Full Name / Display Name</label><input type="text" id="usr-fullname" class="form-control" required></div>
+                        <div class="col-md-6"><label class="form-label">Username</label><input type="text" id="usr-username" class="form-control" required></div>
+                        <div class="col-md-6"><label class="form-label">Password</label><input type="text" id="usr-password" class="form-control" required></div>
+                        <div class="col-md-6"><label class="form-label">Fallback Avatar Emoji</label><input type="text" id="usr-avatar" class="form-control" value="🧑‍💼" required></div>
+                        <div class="col-md-6">
+                            <label class="form-label">Role</label>
+                            <select id="usr-role" class="form-select" required>
+                                <option value="cashier">Cashier</option>
+                                <option value="storekeeper">Storekeeper</option>
+                                <option value="manager">Manager</option>
+                            </select>
+                        </div>
+                        <div class="col-md-12">
+                            <label class="form-label">Profile Picture Placeholder (Optional)</label>
+                            <input type="file" id="usr-image-file" class="form-control" accept="image/*" onchange="previewUserImage(event, 'usr')">
+                            <input type="hidden" id="usr-image-data">
+                        </div>
+                    </div>
+                    <div class="modal-footer"><button type="submit" class="btn btn-primary">Save Employee Account</button></div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Master Admin / User Profile Modal (My Profile) -->
+    <div class="modal fade" id="profileModal" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <form id="profile-form" onsubmit="saveMyProfile(event)">
+                    <div class="modal-header">
+                        <h5 class="modal-title"><i class="bi bi-person-circle me-1"></i> Edit My Profile</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                    </div>
+                    <div class="modal-body row g-2">
+                        <div class="col-md-12"><label class="form-label">Full Name / Display Name</label><input type="text" id="prof-fullname" class="form-control" required></div>
+                        <div class="col-md-6"><label class="form-label">Username</label><input type="text" id="prof-username" class="form-control" required></div>
+                        <div class="col-md-6"><label class="form-label">Password</label><input type="text" id="prof-password" class="form-control" required></div>
+                        <div class="col-md-6"><label class="form-label">Fallback Avatar Emoji</label><input type="text" id="prof-avatar" class="form-control" required></div>
+                        <div class="col-md-6">
+                            <label class="form-label">Role (Fixed)</label>
+                            <input type="text" id="prof-role-display" class="form-control bg-light" disabled>
+                        </div>
+                        <div class="col-md-12">
+                            <label class="form-label">Profile Picture (Optional)</label>
+                            <input type="file" id="prof-image-file" class="form-control" accept="image/*" onchange="previewUserImage(event, 'prof')">
+                            <input type="hidden" id="prof-image-data">
+                        </div>
+                    </div>
+                    <div class="modal-footer"><button type="submit" class="btn btn-primary">Save Changes</button></div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Print Receipt Modal -->
+    <div class="modal fade" id="receiptModal" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content p-3">
+                <div id="receipt-content">
+                    <div class="text-center">
+                        <h5>Vinco City Supermarket</h5>
+                        <p class="small mb-1">208 Nnebisi road, opposite GT bank, Asaba, Delta state</p>
+                        <p class="small mb-1">email: supermarketvincocity@gmail.com</p>
+                        <hr>
+                    </div>
+                    <div id="receipt-details"></div>
+                </div>
+                <div class="modal-footer">
+                    <button class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                    <button class="btn btn-primary" onclick="window.print()">Print Receipt</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        let db = JSON.parse(localStorage.getItem('vinco_db')) || {
+            users: [
+                { username: 'admin', password: 'password123', role: 'admin', avatar: '👑', picture: '', status: 'active', fullname: 'System Admin' }
+            ],
+            requests: [],
+            products: [],
+            sales: [],
+            email: 'supermarketvincocity@gmail.com'
+        };
+
+        let currentUser = null;
+        let cart = [];
+
+        function syncDB() {
+            localStorage.setItem('vinco_db', JSON.stringify(db));
+            updatePendingBadge();
+        }
+
+        window.addEventListener('storage', (e) => {
+            if (e.key === 'vinco_db') {
+                db = JSON.parse(e.newValue);
+                refreshCurrentView();
+                updatePendingBadge();
+            }
+        });
+
+        function triggerSync() {
+            syncDB();
+            alert('Data synced successfully across devices!');
+        }
+
+        function switchAuthRoute(route) {
+            if (route === 'register') {
+                document.getElementById('login-window').style.display = 'none';
+                document.getElementById('register-window').style.display = 'block';
+            } else {
+                document.getElementById('register-window').style.display = 'none';
+                document.getElementById('login-window').style.display = 'block';
+            }
+        }
+
+        async function handleLogin(e) {
+    e.preventDefault();
+    const u = document.getElementById('login-username').value.trim();
+    const p = document.getElementById('login-password').value;
+
+    try {
+        const res = await fetch('http://localhost:5000/api/auth/login', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ username: u, password: p })
+        });
+        const data = await res.json();
+
+        if (data.success && data.user) {
+            currentUser = data.user;
+            currentUser.name = currentUser.name || currentUser.fullname;
+            currentUser.avatar = currentUser.avatar || currentUser.picture;
+
+            localStorage.setItem('vinco_token', data.token);
+            localStorage.setItem('vinco_current_user', JSON.stringify(currentUser));
+
+            if (typeof checkInventoryAlertsOnLogin === 'function') {
+                checkInventoryAlertsOnLogin();
+            }
+            
+            document.getElementById('auth-wrapper').style.display = 'none';
+            document.getElementById('app-wrapper').style.display = 'flex';
+            if (typeof updateSidebarUserDisplay === 'function') {
+                updateSidebarUserDisplay();
+            }
+            
+            // Configure sidebar navigation visibility per role
+            document.querySelectorAll('.restricted-nav').forEach(el => {
+                const allowedRoles = el.getAttribute('data-allowed').split(',');
+                if (allowedRoles.includes(currentUser.role)) {
+                    el.style.display = 'block';
+                } else {
+                    el.style.display = 'none';
+                }
+            });
+
+            // Default view based on role
+            if (currentUser.role === 'storekeeper') {
+                switchView('inventory', document.querySelector('#sidebar .restricted-nav[data-allowed*="storekeeper"] a'));
+            } else {
+                switchView('pos', document.querySelector('#sidebar .nav-link'));
+            }
+
+            if (currentUser.role === 'admin' || currentUser.role === 'manager') {
+                if (typeof updatePendingBadge === 'function') updatePendingBadge();
+            }
+            if (typeof renderPOSGrid === 'function') renderPOSGrid();
+            if (typeof renderCart === 'function') renderCart();
+
+        } else {
+            alert(data.error || 'Invalid login credentials!');
+        }
+    } catch (err) {
+        console.error('Login error:', err);
+        alert('Unable to connect to the backend server.');
+    }
+}
+
+        function updateSidebarUserDisplay() {
+            if (!currentUser) return;
+            document.getElementById('sidebar-username').innerText = currentUser.fullname || currentUser.username;
+            
+            const roleLabels = {
+                admin: 'Master Admin',
+                manager: 'Manager',
+                storekeeper: 'Storekeeper',
+                cashier: 'Cashier'
+            };
+            document.getElementById('sidebar-role').innerHTML = `${roleLabels[currentUser.role] || 'Employee'} <i class="bi bi-pencil-square ms-1 small"></i>`;
+            
+            const avatarContainer = document.getElementById('user-avatar-display-container');
+            if (currentUser.picture) {
+                avatarContainer.innerHTML = `<img src="${currentUser.picture}" class="rounded-circle" width="40" height="40" style="object-fit:cover;">`;
+            } else {
+                avatarContainer.innerHTML = `<span id="user-avatar-display" class="fs-3">${currentUser.avatar || '👤'}</span>`;
+            }
+        }
+
+        function openProfileModal() {
+            if (!currentUser) return;
+            document.getElementById('profile-form').reset();
+            document.getElementById('prof-fullname').value = currentUser.fullname || '';
+            document.getElementById('prof-username').value = currentUser.username;
+            document.getElementById('prof-password').value = currentUser.password;
+            document.getElementById('prof-avatar').value = currentUser.avatar || '👑';
+            
+            const roleLabels = { admin: 'Master Admin', manager: 'Manager', storekeeper: 'Storekeeper', cashier: 'Cashier' };
+            document.getElementById('prof-role-display').value = roleLabels[currentUser.role] || currentUser.role;
+            document.getElementById('prof-image-data').value = currentUser.picture || '';
+
+            new bootstrap.Modal(document.getElementById('profileModal')).show();
+        }
+
+        function saveMyProfile(e) {
+            e.preventDefault();
+            if (!currentUser) return;
+
+            const newFullname = document.getElementById('prof-fullname').value.trim();
+            const newUsername = document.getElementById('prof-username').value.trim();
+            const newPassword = document.getElementById('prof-password').value;
+            const newAvatar = document.getElementById('prof-avatar').value.trim();
+            const newPicture = document.getElementById('prof-image-data').value;
+
+            if (newUsername !== currentUser.username && db.users.some(x => x.username === newUsername)) {
+                alert('This username is already taken by another account.');
+                return;
+            }
+
+            const idx = db.users.findIndex(x => x.username === currentUser.username);
+            if (idx !== -1) {
+                db.users[idx].fullname = newFullname;
+                db.users[idx].username = newUsername;
+                db.users[idx].password = newPassword;
+                db.users[idx].avatar = newAvatar;
+                if (newPicture !== '') {
+                    db.users[idx].picture = newPicture;
+                }
+                currentUser = db.users[idx];
+            }
+
+            syncDB();
+            updateSidebarUserDisplay();
+            bootstrap.Modal.getInstance(document.getElementById('profileModal')).hide();
+            alert('Your profile has been updated successfully!');
+        }
+
+        function handleLogout() {
+            currentUser = null;
+            document.getElementById('auth-wrapper').style.display = 'flex';
+            document.getElementById('app-wrapper').style.display = 'none';
+            document.getElementById('login-window').querySelector('form').reset();
+            switchAuthRoute('login');
+        }
+
+        function togglePasswordVisibility() {
+            const pass = document.getElementById('login-password');
+            const icon = document.getElementById('eye-icon');
+            if (pass.type === 'password') {
+                pass.type = 'text';
+                icon.className = 'bi bi-eye-slash';
+            } else {
+                pass.type = 'password';
+                icon.className = 'bi bi-eye';
+            }
+        }
+
+        function triggerForgotPassword() {
+            alert('Please contact the Master Admin to recover or reset your password.');
+        }
+
+        function previewUserImage(e, type) {
+            const file = e.target.files[0];
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = function(upload) {
+                    document.getElementById(`${type}-image-data`).value = upload.target.result;
+                };
+                reader.readAsDataURL(file);
+            }
+        }
+
+        function submitEmployeeSelfRegistration(e) {
+            e.preventDefault();
+            const fullname = document.getElementById('reg-fullname').value.trim();
+            const username = document.getElementById('reg-username').value.trim();
+            const password = document.getElementById('reg-password').value;
+            const role = document.getElementById('reg-role').value;
+            const avatar = document.getElementById('reg-avatar').value.trim();
+            const picture = document.getElementById('reg-image-data').value;
+
+            if (db.users.some(x => x.username === username) || db.requests.some(x => x.username === username)) {
+                alert('This username is already taken or pending approval. Please choose another.');
+                return;
+            }
+
+            db.requests.push({
+                id: Date.now(),
+                fullname,
+                username,
+                password,
+                role,
+                avatar,
+                picture,
+                date: new Date().toISOString()
+            });
+            syncDB();
+            alert('Registration request submitted successfully! Your account is now pending administrator verification.');
+            switchAuthRoute('login');
+            document.getElementById('register-window').querySelector('form').reset();
+            document.getElementById('reg-image-data').value = '';
+        }
+
+        function updatePendingBadge() {
+            const badge = document.getElementById('pending-badge');
+            if (!badge) return;
+            const count = db.requests.length;
+            if (count > 0 && currentUser && (currentUser.role === 'admin' || currentUser.role === 'manager')) {
+                badge.innerText = count;
+                badge.style.display = 'inline-block';
+            } else {
+                badge.style.display = 'none';
+            }
+        }
+
+        function switchView(viewName, el) {
+            document.querySelectorAll('.app-view').forEach(v => v.style.display = 'none');
+            document.getElementById(`view-${viewName}`).style.display = 'block';
+            document.querySelectorAll('#sidebar .nav-link').forEach(l => l.classList.remove('active'));
+            if(el) el.classList.add('active');
+            document.getElementById('view-title').innerText = viewName.toUpperCase();
+            refreshCurrentView(viewName);
+        }
+
+        function refreshCurrentView(view = '') {
+            if (view === 'inventory') renderInventoryTable();
+            if (view === 'alerts') renderAlerts();
+            if (view === 'reports') renderReports();
+            if (view === 'employees') renderEmployees();
+            if (view === 'pos') { renderPOSGrid(); renderCart(); }
+            updatePendingBadge();
+        }
+
+        function toggleSidebar() {
+            document.getElementById('sidebar').classList.toggle('active');
+        }
+
+        function toggleTheme() {
+            const html = document.documentElement;
+            const currentTheme = html.getAttribute('data-bs-theme');
+            html.setAttribute('data-bs-theme', currentTheme === 'light' ? 'dark' : 'light');
+        }
+
+        function renderPOSGrid() {
+            const grid = document.getElementById('pos-grid');
+            const query = document.getElementById('pos-search').value.toLowerCase();
+            grid.innerHTML = '';
+            
+            if (db.products.length === 0) {
+                grid.innerHTML = `
+                    <div class="col-12 text-center py-5 text-muted">
+                        <i class="bi bi-box-seam fs-1 d-block mb-2"></i>
+                        <h5>No products available in inventory</h5>
+                        <p class="small">Add products via the Inventory tab to view them here on the POS terminal.</p>
+                    </div>
+                `;
+                return;
+            }
+
+            db.products.filter(p => p.name.toLowerCase().includes(query) || (p.barcode && p.barcode.toLowerCase().includes(query)) || p.sku.toLowerCase().includes(query)).forEach(p => {
+                const col = document.createElement('div');
+                col.className = 'col-md-4 col-sm-6 col-12';
+                col.innerHTML = `
+                    <div class="card p-2 h-100 shadow-sm" style="cursor:pointer;" onclick="addToCart(${p.id})">
+                        <img src="${p.image || 'https://placehold.co/150'}" class="card-img-top" style="height:90px; object-fit:cover;">
+                        <div class="card-body p-1">
+                            <h6 class="card-title mb-1 text-truncate">${p.name}</h6>
+                            <p class="small text-muted mb-1">Stock: ${p.stock}</p>
+                            <span class="text-success fw-bold">₦${p.sellingPrice ? p.sellingPrice.toLocaleString() : '0.00'}</span>
+                        </div>
+                    </div>
+                `;
+                grid.appendChild(col);
+            });
+        }
+
+        function filterPOSProducts() { renderPOSGrid(); }
+
+        function handlePOSKeydown(e) {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                const searchInput = document.getElementById('pos-search');
+                const query = searchInput.value.trim();
+                if (!query) return;
+
+                let matched = db.products.find(p => p.barcode === query || p.sku.toLowerCase() === query.toLowerCase());
+                
+                if (!matched) {
+                    const filtered = db.products.filter(p => p.name.toLowerCase().includes(query.toLowerCase()) || (p.barcode && p.barcode.includes(query)) || p.sku.toLowerCase().includes(query.toLowerCase()));
+                    if (filtered.length === 1) {
+                        matched = filtered[0];
+                    }
+                }
+
+                if (matched) {
+                    addToCart(matched.id);
+                    searchInput.value = '';
+                    filterPOSProducts();
+                } else {
+                    alert('No matching product found for scanned/entered code.');
+                }
+            }
+        }
+
+        document.addEventListener('keydown', (e) => {
+            const posView = document.getElementById('view-pos');
+            if (posView && posView.style.display !== 'none') {
+                const searchInput = document.getElementById('pos-search');
+                const activeEl = document.activeElement;
+                const isTypingElsewhere = activeEl && (activeEl.tagName === 'INPUT' || activeEl.tagName === 'TEXTAREA' || activeEl.tagName === 'SELECT');
+                
+                if (!isTypingElsewhere && e.key.length === 1 && !e.ctrlKey && !e.altKey && !e.metaKey) {
+                    searchInput.focus();
+                }
+            }
+        });
+
+        function addToCart(id) {
+            const prod = db.products.find(p => p.id === id);
+            if (!prod || prod.stock <= 0) return alert('Out of stock!');
+            const item = cart.find(x => x.id === id);
+            if (item) {
+                if (item.qty < prod.stock) item.qty++;
+            } else {
+                cart.push({ id: prod.id, name: prod.name, price: prod.sellingPrice || 0, qty: 1 });
+            }
+            renderCart();
+        }
+
+        function updateCartQty(id, change) {
+            const item = cart.find(x => x.id === id);
+            const prod = db.products.find(p => p.id === id);
+            if (item) {
+                item.qty += change;
+                if (item.qty <= 0) {
+                    cart = cart.filter(x => x.id !== id);
+                } else if (prod && item.qty > prod.stock) {
+                    item.qty = prod.stock;
+                    alert('Cannot exceed available stock limit.');
+                }
+            }
+            renderCart();
+        }
+
+        function renderCart() {
+            const list = document.getElementById('persistent-cart-list');
+            if (!list) return;
+            list.innerHTML = '';
+            let total = 0;
+
+            if (cart.length === 0) {
+                list.innerHTML = `<li class="list-group-item text-center text-muted small py-4">Cart is empty</li>`;
+                document.getElementById('persistent-cart-total').innerText = '₦0.00';
+                return;
+            }
+
+            cart.forEach(item => {
+                total += item.price * item.qty;
+                const li = document.createElement('li');
+                li.className = 'list-group-item d-flex justify-content-between align-items-center py-2';
+                li.innerHTML = `
+                    <div class="text-truncate me-2" style="max-width: 120px;">
+                        <div class="small fw-bold">${item.name}</div>
+                        <div class="text-muted" style="font-size: 0.75rem;">₦${item.price.toLocaleString()}</div>
+                    </div>
+                    <div class="input-group input-group-sm w-auto">
+                        <button class="btn btn-outline-secondary px-1 py-0" onclick="updateCartQty(${item.id}, -1)">-</button>
+                        <span class="px-2 small d-flex align-items-center">${item.qty}</span>
+                        <button class="btn btn-outline-secondary px-1 py-0" onclick="updateCartQty(${item.id}, 1)">+</button>
+                    </div>
+                `;
+                list.appendChild(li);
+            });
+            document.getElementById('persistent-cart-total').innerText = `₦${total.toLocaleString()}`;
+        }
+
+        function completeSale() {
+            if (cart.length === 0) return alert('Cart is empty');
+            const total = cart.reduce((acc, item) => acc + (item.price * item.qty), 0);
+            cart.forEach(item => {
+                const p = db.products.find(x => x.id === item.id);
+                if (p) p.stock -= item.qty;
+            });
+            db.sales.push({ date: new Date().toISOString(), items: [...cart], total, paymentMethod: document.getElementById('payment-method').value });
+            syncDB();
+
+            let receiptHtml = `<p>Date: ${new Date().toLocaleString()}</p><div class="receipt-border">`;
+            cart.forEach(item => {
+                receiptHtml += `<div class="d-flex justify-content-between receipt-border"><span>${item.name} x${item.qty}</span><span>₦${(item.price * item.qty).toLocaleString()}</span></div>`;
+            });
+            receiptHtml += `</div><h5>Total: ₦${total.toLocaleString()}</h5>`;
+            document.getElementById('receipt-details').innerHTML = receiptHtml;
+
+            new bootstrap.Modal(document.getElementById('receiptModal')).show();
+            cart = [];
+            renderCart();
+            renderPOSGrid();
+        }
+
+        function renderInventoryTable() {
+            const tbody = document.getElementById('inventory-table-body');
+            const query = document.getElementById('inv-search').value.toLowerCase();
+            tbody.innerHTML = '';
+            db.products.filter(p => p.name.toLowerCase().includes(query) || (p.barcode && p.barcode.toLowerCase().includes(query)) || p.sku.toLowerCase().includes(query)).forEach(p => {
+                let expiryStatus = '';
+                if (p.expiryDate) {
+                    const days = (new Date(p.expiryDate) - new Date()) / (1000 * 60 * 60 * 24);
+                    if (days < 0) expiryStatus = '<span class="badge bg-danger">EXPIRED</span>';
+                    else if (days <= 60) expiryStatus = '<span class="badge bg-warning text-dark">Expires Soon</span>';
+                }
+                const tr = document.createElement('tr');
+                tr.innerHTML = `
+                    <td><img src="${p.image || 'https://placehold.co/150'}" width="40" height="40" style="object-fit:cover;"></td>
+                    <td><code>${p.barcode || 'N/A'}</code></td>
+                    <td><strong>${p.name}</strong> ${expiryStatus}</td>
+                    <td>${p.category}</td>
+                    <td>${p.sku}</td>
+                    <td>${p.stock} / ${p.limit}</td>
+                    <td>${p.costPrice !== null ? '₦' + p.costPrice : 'Blank'}</td>
+                    <td>${p.sellingPrice !== null ? '₦' + p.sellingPrice : 'Blank'}</td>
+                    <td>${p.expiryDate || 'Blank'}</td>
+                    <td>
+                        <button class="btn btn-sm btn-outline-warning me-1" onclick="openProductModal(${p.id})"><i class="bi bi-pencil"></i></button>
+                        <button class="btn btn-sm btn-outline-danger" onclick="deleteProduct(${p.id})"><i class="bi bi-trash"></i></button>
+                    </td>
+                `;
+                tbody.appendChild(tr);
+            });
+
+
+
+            // Helper function for product status badges
+    function getproductstatusbadge(status) {
+        const statusMap = {
+            'in_stock': { class: 'bg-success', label: 'In Stock' },
+            'low_stock': { class: 'bg-warning text-dark', label: 'Low Stock' },
+            'out_of_stock': { class: 'bg-danger', label: 'Out of Stock' },
+            'discontinued': { class: 'bg-secondary', label: 'Discontinued' }
+        };
+        const config = statusMap[status] || { class: 'bg-light text-dark', label: status || 'Unknown' };
+        return `<span class="badge ${config.class}">${config.label}</span>`;
+    }
+
+    // Example usage inside your product table rendering loop:
+    function renderProducts() {
+        const tbody = document.getElementById('productTableBody');
+        if (!tbody) return;
+
+        tbody.innerHTML = '';
+        if (!db.products || db.products.length === 0) {
+            tbody.innerHTML = `<tr><td colspan="5" class="text-center text-muted">No products found.</td></tr>`;
+            return;
+        }
+
+        db.products.forEach((p, idx) => {
+            // Determine threshold alerts (e.g., stock below 5 is low, 0 is out)
+            const isLowStock = p.status === 'low_stock' || (p.stock > 0 && p.stock < 5);
+            const isOutStock = p.status === 'out_of_stock' || p.stock === 0;
+
+            // Apply Bootstrap table row classes for visual alerts
+            let rowClass = '';
+            if (isOutStock) rowClass = 'table-danger';
+            else if (isLowStock) rowClass = 'table-warning';
+
+            const tr = document.createElement('tr');
+            tr.className = rowClass;
+            tr.innerHTML = `
+                <td>
+                    <div class="d-flex align-items-center justify-content-between">
+                        <div>
+                            <strong>${p.name}</strong><br>
+                            <small class="text-muted">SKU: ${p.sku}</small>
+                        </div>
+                        ${isLowStock ? '<span class="badge bg-dark text-warning ms-2"><i class="bi bi-exclamation-triangle"></i> Low Stock Alert</span>' : ''}
+                        ${isOutStock ? '<span class="badge bg-dark text-danger ms-2"><i class="bi bi-x-octagon"></i> Out of Stock</span>' : ''}
+                    </div>
+                </td>
+                <td>$${Number(p.price).toFixed(2)}</td>
+                <td><strong>${p.stock}</strong></td>
+                <td>${getproductstatusbadge(p.status)}</td>
+                <td>
+                    <button class="btn btn-sm btn-outline-danger" onclick="deleteProduct(${idx})">
+                        <i class="bi bi-trash"></i>
+                    </button>
+                </td>
+            `;
+            tbody.appendChild(tr);
+        });
+    }
+        }
+
+        function checkInventoryAlertsOnLogin() {
+        if (!db.products || db.products.length === 0) return;
+
+        const today = new Date();
+        const expiredItems = [];
+        const lowStockItems = [];
+
+        db.products.forEach(p => {
+            if (p.expiryDate) {
+                const expiryDate = new Date(p.expiryDate);
+                const diffDays = Math.ceil((expiryDate - today) / (1000 * 60 * 60 * 24));
+                if (diffDays <= 0) {
+                    expiredItems.push(`${p.name} (Expired)`);
+                }
+            }
+
+            const threshold = p.limit !== undefined ? p.limit : 5;
+            if (p.stock <= threshold) {
+                lowStockItems.push(`${p.name} (Stock: ${p.stock})`);
+            }
+        });
+
+        if (expiredItems.length > 0 || lowStockItems.length > 0) {
+            let message = '⚠️ INVENTORY ALERTS DETECTED ⚠️\n\n';
+            if (expiredItems.length > 0) message += `🔴 Expired: ${expiredItems.length} items\n`;
+            if (lowStockItems.length > 0) message += `🟡 Low Stock: ${lowStockItems.length} items\n`;
+            message += '\nCheck the Alerts tab for full details.';
+            
+            setTimeout(() => alert(message), 500);
+        }
+    }
+
+
+        function generateSingleBarcode() {
+            const barcodeInput = document.getElementById('prod-barcode');
+            const randomDigits = Math.floor(100000000000 + Math.random() * 900000000000).toString();
+            barcodeInput.value = randomDigits;
+        }
+
+        function openProductModal(id = null) {
+            document.getElementById('product-form').reset();
+            document.getElementById('prod-id').value = '';
+            document.getElementById('prod-barcode').value = '';
+            
+            if (id) {
+                const p = db.products.find(x => x.id === id);
+                if (p) {
+                    document.getElementById('prod-id').value = p.id;
+                    document.getElementById('prod-barcode').value = p.barcode || '';
+                    document.getElementById('prod-name').value = p.name;
+                    document.getElementById('prod-category').value = p.category;
+                    document.getElementById('prod-sku').value = p.sku;
+                    document.getElementById('prod-stock').value = p.stock;
+                    document.getElementById('prod-limit').value = p.limit;
+                    document.getElementById('prod-cost').value = p.costPrice !== null ? p.costPrice : '';
+                    document.getElementById('prod-price').value = p.sellingPrice !== null ? p.sellingPrice : '';
+                    document.getElementById('prod-expiry').value = p.expiryDate || '';
+                    document.getElementById('prod-image-data').value = p.image || '';
+                }
+            }
+            new bootstrap.Modal(document.getElementById('productModal')).show();
+        }
+
+        function previewImage(e) {
+            const file = e.target.files[0];
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = function(upload) {
+                    document.getElementById('prod-image-data').value = upload.target.result;
+                };
+                reader.readAsDataURL(file);
+            }
+        }
+
+        function saveProduct(e) {
+            e.preventDefault();
+            const id = document.getElementById('prod-id').value;
+            let barcodeVal = document.getElementById('prod-barcode').value.trim().replace(/[^0-9]/g, '');
+
+            if (!barcodeVal) {
+                barcodeVal = Math.floor(100000000000 + Math.random() * 900000000000).toString();
+            }
+
+            const costVal = document.getElementById('prod-cost').value;
+            const priceVal = document.getElementById('prod-price').value;
+            const expiryVal = document.getElementById('prod-expiry').value;
+
+            const productData = {
+                id: id ? parseInt(id) : Date.now(),
+                barcode: barcodeVal,
+                name: document.getElementById('prod-name').value,
+                category: document.getElementById('prod-category').value,
+                sku: document.getElementById('prod-sku').value,
+                stock: parseInt(document.getElementById('prod-stock').value),
+                limit: parseInt(document.getElementById('prod-limit').value),
+                costPrice: costVal !== '' ? parseFloat(costVal) : null,
+                sellingPrice: priceVal !== '' ? parseFloat(priceVal) : null,
+                expiryDate: expiryVal !== '' ? expiryVal : null,
+                image: document.getElementById('prod-image-data').value
+            };
+
+            if (id) {
+                const idx = db.products.findIndex(x => x.id === parseInt(id));
+                db.products[idx] = productData;
+            } else {
+                db.products.push(productData);
+            }
+            syncDB();
+            bootstrap.Modal.getInstance(document.getElementById('productModal')).hide();
+            renderInventoryTable();
+            renderPOSGrid();
+        }
+
+        function deleteProduct(id) {
+            if (confirm('Delete this product?')) {
+                db.products = db.products.filter(x => x.id !== id);
+                syncDB();
+                renderInventoryTable();
+                renderPOSGrid();
+            }
+        }
+
+        function renderAlerts() {
+            const expiryList = document.getElementById('expiry-alert-list');
+            const stockList = document.getElementById('stock-alert-list');
+            expiryList.innerHTML = '';
+            stockList.innerHTML = '';
+
+            db.products.forEach(p => {
+                if (p.expiryDate) {
+                    const days = (new Date(p.expiryDate) - new Date()) / (1000 * 60 * 60 * 24);
+                    if (days <= 60) {
+                        expiryList.innerHTML += `<li class="list-group-item d-flex justify-content-between align-items-center"><span>${p.name}</span> <span class="badge bg-danger">${days < 0 ? 'Expired' : 'Expires in ' + Math.ceil(days) + ' days'}</span></li>`;
+                    }
+                }
+                if (p.stock <= p.limit) {
+                    stockList.innerHTML += `<li class="list-group-item d-flex justify-content-between align-items-center"><span>${p.name}</span> <span class="badge bg-warning text-dark">Stock: ${p.stock} (Limit: ${p.limit})</span></li>`;
+                }
+            });
+        }
+
+        function renderReports() {
+        const container = document.getElementById('reports-content');
+        if (!container) return;
+
+        let totalRevenue = 0;
+        let totalCost = 0;
+        let totalItemsSold = 0;
+
+        db.sales.forEach(sale => {
+            totalRevenue += sale.total || 0;
+            if (sale.items && Array.isArray(sale.items)) {
+                sale.items.forEach(cartItem => {
+                    totalItemsSold += cartItem.qty;
+                    const prod = db.products.find(p => p.id === cartItem.id);
+                    const unitCost = prod && prod.costPrice !== null ? prod.costPrice : 0;
+                    totalCost += unitCost * cartItem.qty;
+                });
+            }
+        });
+
+        const grossProfit = totalRevenue - totalCost;
+        const profitMargin = totalRevenue > 0 ? ((grossProfit / totalRevenue) * 100).toFixed(1) : 0;
+
+        container.innerHTML = `
+            <div class="row g-3 mb-4">
+                <div class="col-md-3 col-sm-6">
+                    <div class="card p-3 border-success shadow-sm h-100">
+                        <div class="text-muted small">Total Revenue</div>
+                        <h4 class="text-success fw-bold mb-0">₦${totalRevenue.toLocaleString()}</h4>
+                    </div>
+                </div>
+                <div class="col-md-3 col-sm-6">
+                    <div class="card p-3 border-danger shadow-sm h-100">
+                        <div class="text-muted small">Total Cost of Goods</div>
+                        <h4 class="text-danger fw-bold mb-0">₦${totalCost.toLocaleString()}</h4>
+                    </div>
+                </div>
+                <div class="col-md-3 col-sm-6">
+                    <div class="card p-3 border-primary shadow-sm h-100">
+                        <div class="text-muted small">Net Gross Profit</div>
+                        <h4 class="text-primary fw-bold mb-0">₦${grossProfit.toLocaleString()}</h4>
+                        <small class="text-muted">Margin: ${profitMargin}%</small>
+                    </div>
+                </div>
+                <div class="col-md-3 col-sm-6">
+                    <div class="card p-3 border-warning shadow-sm h-100">
+                        <div class="text-muted small">Units Sold</div>
+                        <h4 class="text-dark fw-bold mb-0">${totalItemsSold}</h4>
+                        <small class="text-muted">Transactions: ${db.sales.length}</small>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card p-4 shadow-sm">
+                <div class="d-flex justify-content-between align-items-center mb-3">
+                    <h5 class="mb-0">Profit Terminal & Sales Breakdown</h5>
+                    <button class="btn btn-outline-danger btn-sm" onclick="clearSalesData('all')">
+                        <i class="bi bi-trash me-1"></i> Clear Sales History
+                    </button>
+                </div>
+                <div class="table-responsive">
+                    <table class="table table-hover align-middle">
+                        <thead class="table-light">
+                            <tr>
+                                <th>Date & Time</th>
+                                <th>Payment Method</th>
+                                <th>Items Count</th>
+                                <th>Revenue</th>
+                                <th>Est. Profit</th>
+                            </tr>
+                        </thead>
+                        <tbody id="sales-breakdown-tbody">
+                            ${db.sales.length === 0 ? `<tr><td colspan="5" class="text-center text-muted py-4">No sales recorded yet.</td></tr>` : ''}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        `;
+
+        if (db.sales.length > 0) {
+            const tbody = document.getElementById('sales-breakdown-tbody');
+            tbody.innerHTML = '';
+            
+            db.sales.slice().reverse().forEach(sale => {
+                let saleCost = 0;
+                if (sale.items) {
+                    sale.items.forEach(item => {
+                        const prod = db.products.find(p => p.id === item.id);
+                        const cPrice = prod && prod.costPrice !== null ? prod.costPrice : 0;
+                        saleCost += cPrice * item.qty;
+                    });
+                }
+                const saleProfit = sale.total - saleCost;
+                const itemCount = sale.items ? sale.items.reduce((acc, i) => acc + i.qty, 0) : 0;
+
+                const tr = document.createElement('tr');
+                tr.innerHTML = `
+                    <td>${new Date(sale.date).toLocaleString()}</td>
+                    <td><span class="badge bg-secondary">${sale.paymentMethod || 'Cash'}</span></td>
+                    <td>${itemCount} units</td>
+                    <td class="fw-bold text-success">₦${sale.total.toLocaleString()}</td>
+                    <td class="fw-bold text-primary">₦${saleProfit.toLocaleString()}</td>
+                `;
+                tbody.appendChild(tr);
+            });
+        }
+    }
+
+        function clearSalesData(period) {
+            if (confirm(`Clear ${period} sales data?`)) {
+                db.sales = [];
+                syncDB();
+                renderReports();
+            }
+        }
+
+        function renderEmployees() {
+            const reqContainer = document.getElementById('pending-requests-container');
+            const tbody = document.getElementById('employee-table-body');
+            reqContainer.innerHTML = '';
+            tbody.innerHTML = '';
+
+            if (db.requests.length === 0) {
+                reqContainer.innerHTML = `<p class="text-muted small mb-0">No pending registration requests at the moment.</p>`;
+            } else {
+                db.requests.forEach((req, idx) => {
+                    const picHtml = req.picture ? `<img src="${req.picture}" class="rounded-circle me-2" width="35" height="35" style="object-fit:cover;">` : `<span class="fs-4 me-2">${req.avatar}</span>`;
+                    reqContainer.innerHTML += `
+                        <div class="card p-3 mb-2 border-primary bg-light">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <div>
+                                    ${picHtml}
+                                    <strong>${req.fullname}</strong> (<code class="text-dark">@${req.username}</code>) - <span class="badge bg-secondary">${req.role}</span>
+                                    <div class="small text-muted mt-1">Requested on: ${new Date(req.date).toLocaleString()}</div>
+                                </div>
+                                <div>
+                                    <button class="btn btn-sm btn-success me-1" onclick="approveRequest(${idx})"><i class="bi bi-check-lg me-1"></i> Approve</button>
+                                    <button class="btn btn-sm btn-outline-danger" onclick="rejectRequest(${idx})"><i class="bi bi-x-lg me-1"></i> Reject</button>
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                });
+            }
+
+            // Filter out Master Admin (role === 'admin') so they do not appear in the employee list table
+            const employeeUsers = db.users.filter(u => u.role !== 'admin');
+
+            if (employeeUsers.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="6" class="text-center text-muted py-3">No active employee accounts found.</td></tr>`;
+                return;
+            }
+
+            employeeUsers.forEach((u) => {
+                const globalIdx = db.users.findIndex(x => x.username === u.username);
+                const picHtml = u.picture ? `<img src="${u.picture}" class="rounded-circle" width="35" height="35" style="object-fit:cover;">` : `<span>${u.avatar || '👤'}</span>`;
+                const badgeColor = u.role === 'manager' ? 'bg-success' : (u.role === 'storekeeper' ? 'bg-info text-dark' : 'bg-primary');
+                tbody.innerHTML += `
+                    <tr>
+                        <td>${picHtml}</td>
+                        <td>${u.fullname || 'N/A'}</td>
+                        <td><code>${u.username}</code></td>
+                        <td>${u.password}</td>
+                        <td><span class="badge ${badgeColor}">${u.role}</span></td>
+                        <td>
+                            <button class="btn btn-sm btn-outline-warning me-1" onclick="openUserModal('${u.username}')"><i class="bi bi-pencil"></i></button>
+                            <button class="btn btn-sm btn-outline-danger" onclick="deleteEmployee(${globalIdx})"><i class="bi bi-trash"></i></button>
+                        </td>
+                    </tr>
+                `;
+            });
+            updatePendingBadge();
+        }
+
+        function openUserModal(username = null) {
+            document.getElementById('user-form').reset();
+            document.getElementById('usr-original-username').value = '';
+            document.getElementById('usr-image-data').value = '';
+            
+            if (username) {
+                const u = db.users.find(x => x.username === username);
+                if (u) {
+                    document.getElementById('user-modal-title').innerText = 'Edit Employee Account';
+                    document.getElementById('usr-original-username').value = u.username;
+                    document.getElementById('usr-fullname').value = u.fullname || '';
+                    document.getElementById('usr-username').value = u.username;
+                    document.getElementById('usr-password').value = u.password;
+                    document.getElementById('usr-avatar').value = u.avatar || '🧑‍💼';
+                    document.getElementById('usr-role').value = u.role;
+                    document.getElementById('usr-image-data').value = u.picture || '';
+                }
+            } else {
+                document.getElementById('user-modal-title').innerText = 'Add New Employee Account';
+            }
+            new bootstrap.Modal(document.getElementById('userModal')).show();
+        }
+
+        function saveUserAccount(e) {
+            e.preventDefault();
+            const originalUsername = document.getElementById('usr-original-username').value;
+            const fullname = document.getElementById('usr-fullname').value.trim();
+            const username = document.getElementById('usr-username').value.trim();
+            const password = document.getElementById('usr-password').value;
+            const avatar = document.getElementById('usr-avatar').value.trim();
+            const role = document.getElementById('usr-role').value;
+            const picture = document.getElementById('usr-image-data').value;
+
+            if (originalUsername) {
+                const idx = db.users.findIndex(x => x.username === originalUsername);
+                if (idx !== -1) {
+                    if (username !== originalUsername && db.users.some(x => x.username === username)) {
+                        alert('Username is already taken by another account.');
+                        return;
+                    }
+                    const existingPic = db.users[idx].picture;
+                    db.users[idx] = { username, password, role, avatar, picture: picture || existingPic, status: 'active', fullname };
+                    
+                    if (currentUser && currentUser.username === originalUsername) {
+                        currentUser = db.users[idx];
+                        updateSidebarUserDisplay();
+                    }
+                }
+            } else {
+                if (db.users.some(x => x.username === username)) {
+                    alert('Username already exists.');
+                    return;
+                }
+                db.users.push({ username, password, role, avatar, picture, status: 'active', fullname });
+            }
+
+            syncDB();
+            bootstrap.Modal.getInstance(document.getElementById('userModal')).hide();
+            renderEmployees();
+            alert('User account saved successfully!');
+        }
+
+        function approveRequest(idx) {
+            const req = db.requests.splice(idx, 1)[0];
+            db.users.push({
+                username: req.username,
+                password: req.password,
+                role: req.role || 'cashier',
+                avatar: req.avatar,
+                picture: req.picture || '',
+                status: 'active',
+                fullname: req.fullname
+            });
+            syncDB();
+            renderEmployees();
+            alert(`Employee @${req.username} has been approved as ${req.role} and can now log in.`);
+        }
+
+        function rejectRequest(idx) {
+            if (confirm('Reject and delete this registration request?')) {
+                db.requests.splice(idx, 1);
+                syncDB();
+                renderEmployees();
+            }
+        }
+
+        function deleteEmployee(idx) {
+            if (confirm('Delete this employee account?')) {
+                db.users.splice(idx, 1);
+                syncDB();
+                renderEmployees();
+            }
+        }
+
+        function saveSystemEmail() {
+            db.email = document.getElementById('system-email').value;
+            syncDB();
+            alert('Email updated.');
+        }
+
+        function exportBackup() {
+            const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(db));
+            const dlAnchor = document.createElement('a');
+            dlAnchor.setAttribute("href", dataStr);
+            dlAnchor.setAttribute("download", "vinco_backup.json");
+            dlAnchor.click();
+        }
+
+        function importBackup(e) {
+            const file = e.target.files[0];
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = function(upload) {
+                    db = JSON.parse(upload.target.result);
+                    syncDB();
+                    alert('Restored successfully.');
+                    location.reload();
+                };
+                reader.readAsText(file);
+            }
+        }
+
+        function startCameraScan(target) {
+            const code = prompt("Scan Barcode / Enter Barcode:");
+            if (code) {
+                const cleanCode = code.trim().replace(/[^0-9]/g, '');
+                if (target === 'pos') {
+                    let matched = db.products.find(p => p.barcode === cleanCode || p.barcode === code.trim());
+                    if (matched) {
+                        addToCart(matched.id);
+                    } else {
+                        alert('No product found with barcode: ' + code);
+                    }
+                } else {
+                    document.getElementById('inv-search').value = code.trim();
+                    renderInventoryTable();
+                }
+            }
+        }
+
+        document.addEventListener('DOMContentLoaded', () => {
+            updatePendingBadge();
+        });
+    </script>
+</body>
+</html>
