@@ -8,10 +8,14 @@ require('dotenv').config();
 
 const app = express();
 app.set('trust proxy', 1);
+
+// Middleware to parse incoming JSON payloads
+app.use(express.json());
+
 const PORT = process.env.PORT || 10000;
 const JWT_SECRET = process.env.JWT_SECRET || 'your_secret_key_here';
 
-// Update your CORS middleware in server.js
+// CORS middleware
 app.use(cors({
   origin: '*',
   methods: ['GET', 'POST', 'PUT', 'DELETE'],
