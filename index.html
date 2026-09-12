@@ -53,7 +53,7 @@
                         <label class="form-label">Password</label>
                         <div class="input-group">
                             <input type="password" id="login-password" class="form-control" required>
-                            <button type="button" class="btn btn-outline-secondary" onclick="togglePasswordVisibility()"><i class="bi bi-eye" id="eye-icon"></i></button>
+                            <button type="button" id="toggle-password-btn">👁️</button>
                         </div>
                     </div>
                     <div class="d-flex justify-content-between align-items-center mb-3">
@@ -437,7 +437,18 @@
     </div>
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
-    <script>
+    <script type="module">
+document.addEventListener('DOMContentLoaded', () => {
+    const toggleBtn = document.getElementById('toggle-password-btn');
+    if (toggleBtn) {
+        toggleBtn.addEventListener('click', () => {
+            const input = document.getElementById('login-password');
+            if (input) {
+                input.type = input.type === 'password' ? 'text' : 'password';
+            }
+        });
+    }
+});
         let db = JSON.parse(localStorage.getItem('vinco_db')) || {
             users: [
                 { username: 'admin', password: 'password123', role: 'admin', avatar: '👑', picture: '', status: 'active', fullname: 'System Admin' }
@@ -464,6 +475,13 @@
             }
         });
 
+        function togglePasswordVisibility(fieldId) {
+        const input = document.getElementById(fieldId || 'login-password');
+        if (input) {
+            input.type = input.type === 'password' ? 'text' : 'password';
+        }
+    }
+
         function triggerSync() {
             syncDB();
             alert('Data synced successfully across devices!');
@@ -479,88 +497,203 @@
             }
         }
 
-        async function handleLogin(e) {
-    e.preventDefault();
-    const u = document.getElementById('login-username').value.trim();
-    const p = document.getElementById('login-password').value;
+        window.handleLogin = async function(event) {
+    if (event) event.preventDefault();
+
+    var userField = document.getElementById('login-username');
+    var passField = document.getElementById('login-password');
+
+    if (!userField || !passField) {
+        console.error('Login form elements not found.');
+        return;
+    }
 
     try {
-        const res = await fetch('http://localhost:5000/api/auth/login', {
+        var apiResponse = await fetch('https://quickcheck-12.onrender.com/api/login', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ username: u, password: p })
+            body: JSON.stringify({
+                username: userField.value,
+                password: passField.value
+            })
         });
-        const data = await res.json();
 
-        if (data.success && data.user) {
-            currentUser = data.user;
-            currentUser.name = currentUser.name || currentUser.fullname;
-            currentUser.avatar = currentUser.avatar || currentUser.picture;
+        var contentType = apiResponse.headers.get('content-type');
+        if (!contentType || !contentType.includes('application/json')) {
+            throw new Error('Server returned HTML instead of JSON. Your Render backend may still be spinning up—wait a moment and try again.');
+        }
 
-            localStorage.setItem('vinco_token', data.token);
-            localStorage.setItem('vinco_current_user', JSON.stringify(currentUser));
+        var resultJson = await apiResponse.json();
 
-            if (typeof checkInventoryAlertsOnLogin === 'function') {
-                checkInventoryAlertsOnLogin();
-            }
-            
-            document.getElementById('auth-wrapper').style.display = 'none';
-            document.getElementById('app-wrapper').style.display = 'flex';
+        if (apiResponse.ok) {
+            localStorage.setItem('vinco_token', resultJson.token);
+            var authWrap = document.getElementById('auth-wrapper');
+            var appWrap = document.getElementById('app-wrapper');
+            if (authWrap) authWrap.style.display = 'none';
+            if (appWrap) appWrap.style.display = 'flex';
             if (typeof updateSidebarUserDisplay === 'function') {
                 updateSidebarUserDisplay();
             }
-            
-            // Configure sidebar navigation visibility per role
-            document.querySelectorAll('.restricted-nav').forEach(el => {
-                const allowedRoles = el.getAttribute('data-allowed').split(',');
-                if (allowedRoles.includes(currentUser.role)) {
-                    el.style.display = 'block';
-                } else {
-                    el.style.display = 'none';
-                }
-            });
-
-            // Default view based on role
-            if (currentUser.role === 'storekeeper') {
-                switchView('inventory', document.querySelector('#sidebar .restricted-nav[data-allowed*="storekeeper"] a'));
-            } else {
-                switchView('pos', document.querySelector('#sidebar .nav-link'));
-            }
-
-            if (currentUser.role === 'admin' || currentUser.role === 'manager') {
-                if (typeof updatePendingBadge === 'function') updatePendingBadge();
-            }
-            if (typeof renderPOSGrid === 'function') renderPOSGrid();
-            if (typeof renderCart === 'function') renderCart();
-
         } else {
-            alert(data.error || 'Invalid login credentials!');
+            alert(resultJson.error || 'Operation failed');
         }
-    } catch (err) {
-        console.error('Login error:', err);
-        alert('Unable to connect to the backend server.');
+    } catch (networkError) {
+        console.error('Connection error:', networkError);
+        alert(networkError.message || 'Unable to connect to the server.');
+    }
+};
+
+function updateSidebarUserDisplay() {
+    if (typeof currentUser === 'undefined' || !currentUser) return;
+    document.getElementById('sidebar-username').innerText = currentUser.fullname || currentUser.username;
+    
+    const roleLabels = {
+        admin: 'Master Admin',
+        manager: 'Manager',
+        storekeeper: 'Storekeeper',
+        cashier: 'Cashier'
+    };
+    document.getElementById('sidebar-role').innerHTML = `${roleLabels[currentUser.role] || 'Employee'} <i class="bi bi-pencil-square ms-1 small"></i>`;
+    
+    const avatarContainer = document.getElementById('user-avatar-display-container');
+    if (currentUser.picture) {
+        avatarContainer.innerHTML = `<img src="${currentUser.picture}" class="rounded-circle" width="40" height="40" style="object-fit:cover;">`;
+    } else {
+        avatarContainer.innerHTML = `<span id="user-avatar-display" class="fs-3">${currentUser.avatar || '👤'}</span>`;
     }
 }
 
-        function updateSidebarUserDisplay() {
-            if (!currentUser) return;
-            document.getElementById('sidebar-username').innerText = currentUser.fullname || currentUser.username;
-            
-            const roleLabels = {
-                admin: 'Master Admin',
-                manager: 'Manager',
-                storekeeper: 'Storekeeper',
-                cashier: 'Cashier'
-            };
-            document.getElementById('sidebar-role').innerHTML = `${roleLabels[currentUser.role] || 'Employee'} <i class="bi bi-pencil-square ms-1 small"></i>`;
-            
-            const avatarContainer = document.getElementById('user-avatar-display-container');
-            if (currentUser.picture) {
-                avatarContainer.innerHTML = `<img src="${currentUser.picture}" class="rounded-circle" width="40" height="40" style="object-fit:cover;">`;
-            } else {
-                avatarContainer.innerHTML = `<span id="user-avatar-display" class="fs-3">${currentUser.avatar || '👤'}</span>`;
+window.togglePasswordVisibility = function(fieldId) {
+    const input = document.getElementById(fieldId);
+    if (input) {
+        input.type = input.type === 'password' ? 'text' : 'password';
+    }
+};
+window.handleLogin = async function(event) {
+    if (event) event.preventDefault();
+
+    var userField = document.getElementById('login-username');
+    var passField = document.getElementById('login-password');
+
+    if (!userField || !passField) {
+        console.error('Login form elements not found.');
+        return;
+    }
+
+    try {
+        var apiResponse = await fetch('https://quickcheck-12.onrender.com/api/login', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                username: userField.value,
+                password: passField.value
+            })
+        });
+
+        var resultJson = await apiResponse.json();
+
+        if (apiResponse.ok) {
+            localStorage.setItem('vinco_token', resultJson.token);
+            var authWrap = document.getElementById('auth-wrapper');
+            var appWrap = document.getElementById('app-wrapper');
+            if (authWrap) authWrap.style.display = 'none';
+            if (appWrap) appWrap.style.display = 'flex';
+            if (typeof updateSidebarUserDisplay === 'function') {
+                updateSidebarUserDisplay();
             }
+        } else {
+            alert(resultJson.error || 'Operation failed');
         }
+    } catch (networkError) {
+        console.error('Connection error:', networkError);
+        alert('Unable to connect to the server.');
+    }
+};
+
+           // Check around line 608 for any lingering code using 'data' and replace that entire section with this safe block:
+try {
+    var response = await fetch('https://quickcheck-12.onrender.com/api/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+            username: document.getElementById('login-username').value,
+            password: document.getElementById('login-password').value
+        })
+    });
+
+    var responseData = await response.json();
+
+    if (response.ok) {
+        localStorage.setItem('vinco_token', responseData.token);
+        document.getElementById('auth-wrapper').style.display = 'none';
+        document.getElementById('app-wrapper').style.display = 'flex';
+        if (typeof updateSidebarUserDisplay === 'function') {
+            updateSidebarUserDisplay();
+        }
+    } else {
+        alert(responseData.error || 'Operation failed');
+    }
+} catch (error) {
+    console.error('Connection error:', error);
+    alert('Unable to connect to the server.');
+}
+            
+            // Configure sidebar navigation visibility per role
+           
+
+            // Default view based on role
+         const data = await response.json();
+
+        if (response.ok) {
+            localStorage.setItem('vinco_token', data.token);
+            document.getElementById('auth-wrapper').style.display = 'none';
+            document.getElementById('app-wrapper').style.display = 'flex';
+        } else {
+            alert(data.error || 'Operation failed');
+}
+       window.updateSidebarUserDisplay = function() {
+    if (typeof currentUser === 'undefined' || !currentUser) return;
+    
+    const usernameEl = document.getElementById('sidebar-username');
+    if (usernameEl) {
+        usernameEl.innerText = currentUser.fullname || currentUser.username;
+    }
+    
+    const roleLabels = {
+        admin: 'Master Admin',
+        manager: 'Manager',
+        storekeeper: 'Storekeeper',
+        cashier: 'Cashier'
+    };
+    
+    const roleEl = document.getElementById('sidebar-role');
+    if (roleEl) {
+        roleEl.innerHTML = `${roleLabels[currentUser.role] || 'Employee'} <i class="bi bi-pencil-square ms-1 small"></i>`;
+    }
+    
+    const avatarContainer = document.getElementById('user-avatar-display-container');
+    if (avatarContainer) {
+        if (currentUser.picture) {
+            avatarContainer.innerHTML = `<img src="${currentUser.picture}" class="rounded-circle" width="40" height="40" style="object-fit:cover;">`;
+        } else {
+            avatarContainer.innerHTML = `<span id="user-avatar-display" class="fs-3">${currentUser.avatar || '👤'}</span>`;
+        }
+    }
+};
+    
+    const roleEl = document.getElementById('sidebar-role');
+    if (roleEl) {
+        roleEl.innerHTML = `${roleLabels[currentUser.role] || 'Employee'} <i class="bi bi-pencil-square ms-1 small"></i>`;
+    }
+    
+    const avatarContainer = document.getElementById('user-avatar-display-container');
+    if (avatarContainer) {
+        if (currentUser.picture) {
+            avatarContainer.innerHTML = `<img src="${currentUser.picture}" class="rounded-circle" width="40" height="40" style="object-fit:cover;">`;
+        } else {
+            avatarContainer.innerHTML = `<span id="user-avatar-display" class="fs-3">${currentUser.avatar || '👤'}</span>`;
+        }
+    }
 
         function openProfileModal() {
             if (!currentUser) return;
@@ -618,17 +751,12 @@
             switchAuthRoute('login');
         }
 
-        function togglePasswordVisibility() {
-            const pass = document.getElementById('login-password');
-            const icon = document.getElementById('eye-icon');
-            if (pass.type === 'password') {
-                pass.type = 'text';
-                icon.className = 'bi bi-eye-slash';
-            } else {
-                pass.type = 'password';
-                icon.className = 'bi bi-eye';
-            }
-        }
+        window.togglePasswordVisibility = function(fieldId) {
+    const input = document.getElementById(fieldId || 'login-password');
+    if (input) {
+        input.type = input.type === 'password' ? 'text' : 'password';
+    }
+};
 
         function triggerForgotPassword() {
             alert('Please contact the Master Admin to recover or reset your password.');
