@@ -8,14 +8,10 @@ require('dotenv').config();
 
 const app = express();
 app.set('trust proxy', 1);
-
-// Middleware to parse incoming JSON payloads
-app.use(express.json());
-
 const PORT = process.env.PORT || 10000;
 const JWT_SECRET = process.env.JWT_SECRET || 'your_secret_key_here';
 
-// CORS middleware
+// Update your CORS middleware in server.js
 app.use(cors({
   origin: '*',
   methods: ['GET', 'POST', 'PUT', 'DELETE'],
@@ -91,6 +87,17 @@ app.post('/api/login', (req, res) => {
     res.json({ message: 'Login successful', token });
   });
 });
+
+// 1. Hide the login window
+const loginWindow = document.getElementById('login-window');
+if (loginWindow) loginWindow.style.display = 'none';
+
+// 2. Reveal your main dashboard view (update 'dashboard-window' to match your actual dashboard container ID)
+const dashboardWindow = document.getElementById('dashboard-window') || document.getElementById('main-app');
+if (dashboardWindow) dashboardWindow.style.display = 'block';
+
+// 3. Load your protected dashboard data
+fetchDashboardData(data.token);
 
 // Start Server
 app.listen(PORT, () => {

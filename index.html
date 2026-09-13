@@ -7,29 +7,65 @@
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css">
     <style>
-        body { min-height: 100vh; display: flex; flex-direction: column; margin: 0; }
-        #auth-wrapper { position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; z-index: 1050; display: flex; justify-content: center; align-items: center; }
-        #app-wrapper { display: none; width: 100vw; min-height: 100vh; }
-        #sidebar { width: 260px; min-height: 100vh; position: fixed; top: 0; left: 0; z-index: 100; transition: all 0.3s; }
-        #content { margin-left: 260px; width: calc(100% - 260px); transition: all 0.3s; padding: 20px; }
-        @media (max-width: 768px) {
-            #sidebar { margin-left: -260px; }
-            #sidebar.active { margin-left: 0; }
-            #content { margin-left: 0; width: 100%; }
-        }
-        .receipt-border { border-top: 1px dashed currentColor; border-bottom: 1px dashed currentColor; padding: 5px 0; }
-        .profile-trigger { cursor: pointer; transition: opacity 0.2s; }
-        .profile-trigger:hover { opacity: 0.8; }
+    body { min-height: 100vh; display: flex; flex-direction: column; margin: 0; overflow-x: hidden; }
+    #auth-wrapper { position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; z-index: 1050; display: flex; justify-content: center; align-items: center; }
+    
+    #app-wrapper { display: none; width: 100vw; min-height: 100vh; overflow-x: hidden; }
+    
+    #sidebar {
+    width: 260px;
+    min-width: 260px;
+    height: 100vh;
+    position: fixed;
+    top: 0;
+    left: 0; /* Starts fully visible */
+    z-index: 1030;
+    transition: left 0.3s ease-in-out;
+}
 
-        @keyframes subtlePulse {
-            0% { transform: scale(1); opacity: 1; }
-            50% { transform: scale(1.05); opacity: 0.85; }
-            100% { transform: scale(1); opacity: 1; }
-        }
-        .badge-pulse {
-            animation: subtlePulse 1.8s infinite ease-in-out;
-        }
-    </style>
+#content {
+    margin-left: 260px;
+    width: calc(100% - 260px);
+    transition: margin-left 0.3s ease-in-out, width 0.3s ease-in-out;
+    padding: 20px;
+}
+
+/* Collapsed State: Slide sidebar completely off-screen to the left */
+#app-wrapper.sidebar-collapsed #sidebar {
+    left: -260px;
+}
+
+#app-wrapper.sidebar-collapsed #content {
+    margin-left: 0;
+    width: 100%;
+}
+
+@media (max-width: 991.98px) {
+    #sidebar {
+        left: -260px; /* Hidden by default on mobile */
+    }
+    #app-wrapper:not(.sidebar-collapsed) #sidebar {
+        left: 0; /* Show when toggled open on mobile */
+    }
+    #content {
+        margin-left: 0 !important;
+        width: 100% !important;
+    }
+}
+
+    .receipt-border { border-top: 1px dashed currentColor; border-bottom: 1px dashed currentColor; padding: 5px 0; }
+    .profile-trigger { cursor: pointer; transition: opacity 0.2s; }
+    .profile-trigger:hover { opacity: 0.8; }
+
+    @keyframes subtlePulse {
+        0% { transform: scale(1); opacity: 1; }
+        50% { transform: scale(1.05); opacity: 0.85; }
+        100% { transform: scale(1); opacity: 1; }
+    }
+    .badge-pulse {
+        animation: subtlePulse 1.8s infinite ease-in-out;
+    }
+</style>
 </head>
 <body class="bg-body text-body">
 
@@ -44,7 +80,7 @@
 
             <!-- Login Window -->
             <div id="login-window">
-                <form onsubmit="handleLogin(event)">
+                <form id="loginForm">
                     <div class="mb-3">
                         <label class="form-label">Username</label>
                         <input type="text" id="login-username" class="form-control" required>
@@ -113,389 +149,451 @@
         </div>
     </div>
 
-    <!-- Main Application Wrapper -->
-    <div id="app-wrapper" class="d-flex bg-body text-body">
-        <nav id="sidebar" class="bg-black text-white p-3 d-flex flex-column">
-            <div class="d-flex align-items-center mb-4 pb-2 border-bottom border-secondary profile-trigger" onclick="openProfileModal()" title="Click to edit your profile">
-                <div id="user-avatar-display-container" class="me-2">
-                    <span id="user-avatar-display" class="fs-3">👤</span>
-                </div>
-                <div class="overflow-hidden flex-grow-1">
-                    <h6 style="color: #28a745;" class="mb-0 text-truncate" id="sidebar-username">Admin</h6>
-                    <small class="text-muted d-flex align-items-center" id="sidebar-role">Master Admin<i class="bi bi-pencil-square ms-1 small"></i></small>
-                </div>
-            </div>
-            <ul class="nav nav-pills flex-column mb-auto">
-                <li class="nav-item mb-1"><a href="#" class="nav-link text-white active" onclick="switchView('pos', this)"><i class="bi bi-cash-stack me-2"></i> POS & Sales</a></li>
-                <li class="nav-item mb-1 restricted-nav" data-allowed="admin,manager,storekeeper"><a href="#" class="nav-link text-white" onclick="switchView('inventory', this)"><i class="bi bi-box-seam me-2"></i> Inventory</a></li>
-                <li class="nav-item mb-1 restricted-nav" data-allowed="admin,manager,storekeeper"><a href="#" class="nav-link text-white" onclick="switchView('alerts', this)"><i class="bi bi-bell me-2"></i> Alerts & Expiry</a></li>
-                <li class="nav-item mb-1 restricted-nav" data-allowed="admin,manager"><a href="#" class="nav-link text-white" onclick="switchView('reports', this)"><i class="bi bi-graph-up me-2"></i> Reports & Profits</a></li>
-                <li class="nav-item mb-1 restricted-nav" data-allowed="admin,manager"><a href="#" class="nav-link text-white" onclick="switchView('employees', this)"><i class="bi bi-people me-2"></i> Employees <span id="pending-badge" class="badge bg-danger ms-1" style="display:none;">0</span></a></li>
-                <li class="nav-item mb-1 restricted-nav" data-allowed="admin"><a href="#" class="nav-link text-white" onclick="switchView('settings', this)"><i class="bi bi-gear me-2"></i> Settings & Backup</a></li>
-            </ul>
-            <div class="mt-auto pt-3 border-top border-secondary">
-                <button class="btn btn-outline-light btn-sm w-100 mb-2" onclick="toggleTheme()"><i class="bi bi-circle-half me-1"></i> Toggle Theme</button>
-                <button class="btn btn-danger btn-sm w-100" onclick="handleLogout()"><i class="bi bi-box-arrow-right me-1"></i> Logout</button>
-            </div>
-        </nav>
+  <!-- Main Application Wrapper -->
+<div id="app-wrapper" class="d-flex bg-body text-body position-relative">
+    
+    <!-- Permanent Fixed Floating Toggle Button (Never disappears) -->
+    <button class="btn btn-dark text-white shadow-sm position-fixed top-0 start-0 m-3" id="sidebar-toggle-btn" type="button" title="Toggle Sidebar" style="z-index: 1050; width: 40px; height: 40px; display: flex; align-items: center; justify-content: center; border-radius: 8px;">
+        <i class="bi bi-list fs-5"></i>
+    </button>
 
-        <div id="content">
-            <div class="d-flex justify-content-between align-items-center mb-4">
-                <button class="btn btn-dark d-md-none" onclick="toggleSidebar()"><i class="bi bi-list"></i></button>
-                <h4 id="view-title">POS Terminal</h4>
+    <!-- Sidebar Navigation -->
+    <nav id="sidebar" class="bg-black text-white p-3 d-flex flex-column">
+        <div class="d-flex align-items-center mb-4 pb-2 border-bottom border-secondary profile-trigger pt-5" onclick="openProfileModal()" title="Click to edit your profile" style="cursor: pointer;">
+            <div id="user-avatar-display-container" class="me-2">
+                <span id="user-avatar-display" class="fs-3">👤</span>
+            </div>
+            <div class="overflow-hidden flex-grow-1">
+                <h6 style="color: #28a745;" class="mb-0 text-truncate" id="sidebar-username">Admin</h6>
+                <small class="text-muted d-flex align-items-center" id="sidebar-role">Master Admin<i class="bi bi-pencil-square ms-1 small"></i></small>
+            </div>
+        </div>
+        <ul class="nav nav-pills flex-column mb-auto">
+            <li class="nav-item mb-1"><a href="#" class="nav-link text-white active" onclick="switchView('pos', this)"><i class="bi bi-cash-stack me-2"></i> POS & Sales</a></li>
+            <li class="nav-item mb-1 restricted-nav" data-allowed="admin,manager,storekeeper"><a href="#" class="nav-link text-white" onclick="switchView('inventory', this)"><i class="bi bi-box-seam me-2"></i> Inventory</a></li>
+            <li class="nav-item mb-1 restricted-nav" data-allowed="admin,manager,storekeeper"><a href="#" class="nav-link text-white" onclick="switchView('alerts', this)"><i class="bi bi-bell me-2"></i> Alerts & Expiry</a></li>
+            <li class="nav-item mb-1 restricted-nav" data-allowed="admin,manager"><a href="#" class="nav-link text-white" onclick="switchView('reports', this)"><i class="bi bi-graph-up me-2"></i> Reports & Profits</a></li>
+            <li class="nav-item mb-1 restricted-nav" data-allowed="admin,manager"><a href="#" class="nav-link text-white" onclick="switchView('employees', this)"><i class="bi bi-people me-2"></i> Employees <span id="pending-badge" class="badge bg-danger ms-1" style="display:none;">0</span></a></li>
+            <li class="nav-item mb-1 restricted-nav" data-allowed="admin"><a href="#" class="nav-link text-white" onclick="switchView('settings', this)"><i class="bi bi-gear me-2"></i> Settings & Backup</a></li>
+        </ul>
+        <div class="mt-auto pt-3 border-top border-secondary">
+            <button class="btn btn-outline-light btn-sm w-100 mb-2" onclick="toggleTheme()"><i class="bi bi-circle-half me-1"></i> Toggle Theme</button>
+            <button class="btn btn-danger btn-sm w-100" onclick="handleLogout()"><i class="bi bi-box-arrow-right me-1"></i> Logout</button>
+        </div>
+    </nav>
+
+    <!-- Main Content Area -->
+    <div id="content" class="p-3 w-100">
+        <div class="d-flex justify-content-between align-items-center mb-4 p-3 bg-white border rounded shadow-sm ps-5">
+            <h4 id="view-title" class="mb-0 text-dark fw-bold">POS Terminal</h4>
+            <div>
+                <span class="badge bg-success me-2" id="sync-status">Synced</span>
+                <button class="btn btn-outline-primary btn-sm" onclick="triggerSync()"><i class="bi bi-arrow-repeat"></i> Sync Now</button>
+            </div>
+        </div>
+
+        <!-- POS View Split Layout -->
+        <div id="view-pos" class="app-view">
+            <div class="row">
+                <div class="col-lg-8 mb-3">
+                    <div class="input-group mb-3">
+                        <input type="text" id="pos-search" class="form-control" placeholder="Scan Barcode or Search by Name/SKU and press Enter..." oninput="filterPOSProducts()" onkeydown="handlePOSKeydown(event)">
+                        <button class="btn btn-outline-primary" onclick="startCameraScan('pos')"><i class="bi bi-camera"></i> Scan</button>
+                    </div>
+                    <div id="pos-grid" class="row g-2" style="max-height: 75vh; overflow-y: auto;"></div>
+                </div>
+
+                <!-- Permanent Visible Cart Column -->
+                <div class="col-12 col-lg-4 mb-4 mb-lg-0">
+                    <div class="card shadow-sm p-3 sticky-top" style="top: 20px; z-index: 1020;">
+                        <h5 class="mb-3 border-bottom pb-2"><i class="bi bi-cart3 me-2"></i> Current Cart</h5>
+                        <ul id="persistent-cart-list" class="list-group mb-3" style="max-height: 40vh; overflow-y: auto;">
+                            <li class="list-group-item text-center text-muted small py-4">Cart is empty</li>
+                        </ul>
+                        <div class="d-flex justify-content-between align-items-center mb-3 fw-bold fs-5">
+                            <span>Total:</span>
+                            <span id="persistent-cart-total" class="text-success">₦0.00</span>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label small">Payment Method</label>
+                            <select id="payment-method" class="form-select form-select-sm">
+                                <option value="Cash">Cash</option>
+                                <option value="POS">POS Terminal</option>
+                                <option value="Transfer">Bank Transfer</option>
+                                <option value="Both (Cash & Transfer)">Both (Cash & Transfer)</option>
+                            </select>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label small">Customer Email for Receipt</label>
+                            <input type="email" id="customer-email" class="form-control form-control-sm" placeholder="customer@example.com">
+                        </div>
+                        <button class="btn btn-success w-100 py-2" onclick="completeSale()"><i class="bi bi-check-circle me-1"></i> Complete Sale & Print</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Inventory View -->
+        <div id="view-inventory" class="app-view" style="display: none;">
+            <div class="d-flex justify-content-between mb-3 flex-wrap gap-2">
+                <div class="input-group w-50">
+                    <input type="text" id="inv-search" class="form-control" placeholder="Search Inventory..." oninput="renderInventoryTable()">
+                    <button class="btn btn-outline-primary" onclick="startCameraScan('inv')"><i class="bi bi-camera"></i></button>
+                </div>
                 <div>
-                    <span class="badge bg-success me-2" id="sync-status">Synced</span>
-                    <button class="btn btn-outline-primary btn-sm" onclick="triggerSync()"><i class="bi bi-arrow-repeat"></i> Sync Now</button>
+                    <button class="btn btn-primary" onclick="openProductModal()"><i class="bi bi-plus-lg"></i> Add Product</button>
                 </div>
             </div>
+            <div class="table-responsive rounded shadow-sm p-2">
+                <table class="table table-hover align-middle">
+                    <thead>
+                        <tr>
+                            <th>Image</th>
+                            <th>Barcode</th>
+                            <th>Name</th>
+                            <th>Category</th>
+                            <th>SKU</th>
+                            <th>Stock / Limit</th>
+                            <th>Cost</th>
+                            <th>Selling</th>
+                            <th>Expiry</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody id="inventory-table-body"></tbody>
+                </table>
+            </div>
+        </div>
 
-            <!-- POS View with Split Layout -->
-            <div id="view-pos" class="app-view">
-                <div class="row">
-                    <!-- Products Column -->
-                    <div class="col-lg-8 mb-3">
-                        <div class="input-group mb-3">
-                            <input type="text" id="pos-search" class="form-control" placeholder="Scan Barcode or Search by Name/SKU and press Enter..." oninput="filterPOSProducts()" onkeydown="handlePOSKeydown(event)">
-                            <button class="btn btn-outline-primary" onclick="startCameraScan('pos')"><i class="bi bi-camera"></i> Scan</button>
-                        </div>
-                        <div id="pos-grid" class="row g-2" style="max-height: 75vh; overflow-y: auto;"></div>
+        <!-- Alerts View -->
+        <div id="view-alerts" class="app-view" style="display: none;">
+            <div class="row">
+                <div class="col-md-6">
+                    <div class="card shadow-sm p-3 mb-3">
+                        <h5 class="text-danger"><i class="bi bi-exclamation-triangle"></i> Expired & Close to Expiry</h5>
+                        <ul id="expiry-alert-list" class="list-group list-group-flush"></ul>
                     </div>
-
-                    <!-- Permanent Visible Cart Column -->
-                    <div class="col-lg-4">
-                        <div class="card shadow-sm p-3 sticky-top" style="top: 20px;">
-                            <h5 class="mb-3 border-bottom pb-2"><i class="bi bi-cart3 me-2"></i> Current Cart</h5>
-                            <ul id="persistent-cart-list" class="list-group mb-3" style="max-height: 40vh; overflow-y: auto;">
-                                <li class="list-group-item text-center text-muted small py-4">Cart is empty</li>
-                            </ul>
-                            <div class="d-flex justify-content-between align-items-center mb-3 fw-bold fs-5">
-                                <span>Total:</span>
-                                <span id="persistent-cart-total" class="text-success">₦0.00</span>
-                            </div>
-                            <div class="mb-3">
-                                <label class="form-label small">Payment Method</label>
-                                <select id="payment-method" class="form-select form-select-sm">
-                                    <option value="Cash">Cash</option>
-                                    <option value="POS">POS Terminal</option>
-                                    <option value="Transfer">Bank Transfer</option>
-                                    <option value="Both (Cash & Transfer)">Both (Cash & Transfer)</option>
-                                </select>
-                            </div>
-                            <div class="mb-3">
-                                <label class="form-label small">Customer Email for Receipt</label>
-                                <input type="email" id="customer-email" class="form-control form-control-sm" placeholder="customer@example.com">
-                            </div>
-                            <button class="btn btn-success w-100 py-2" onclick="completeSale()"><i class="bi bi-check-circle me-1"></i> Complete Sale & Print</button>
-                        </div>
+                </div>
+                <div class="col-md-6">
+                    <div class="card shadow-sm p-3">
+                        <h5 class="text-warning"><i class="bi bi-graph-down"></i> Low Stock Threshold Alerts</h5>
+                        <ul id="stock-alert-list" class="list-group list-group-flush"></ul>
                     </div>
                 </div>
             </div>
+        </div>
 
-            <!-- Inventory View -->
-            <div id="view-inventory" class="app-view" style="display: none;">
-                <div class="d-flex justify-content-between mb-3 flex-wrap gap-2">
-                    <div class="input-group w-50">
-                        <input type="text" id="inv-search" class="form-control" placeholder="Search Inventory..." oninput="renderInventoryTable()">
-                        <button class="btn btn-outline-primary" onclick="startCameraScan('inv')"><i class="bi bi-camera"></i></button>
-                    </div>
+        <!-- Reports View -->
+        <div id="view-reports" class="app-view" style="display: none;">
+            <div class="card shadow-sm p-4 mb-3">
+                <div class="d-flex justify-content-between align-items-center mb-3">
+                    <h5>Sales & Profits Summary</h5>
                     <div>
-                        <button class="btn btn-primary" onclick="openProductModal()"><i class="bi bi-plus-lg"></i> Add Product</button>
+                        <button class="btn btn-outline-danger btn-sm me-2" onclick="clearSalesData('daily')">Clear Daily</button>
+                        <button class="btn btn-outline-danger btn-sm me-2" onclick="clearSalesData('weekly')">Clear Weekly</button>
+                        <button class="btn btn-outline-danger btn-sm me-2" onclick="clearSalesData('monthly')">Clear Monthly</button>
+                        <button class="btn btn-outline-danger btn-sm" onclick="clearSalesData('yearly')">Clear Yearly</button>
                     </div>
                 </div>
-                <div class="table-responsive rounded shadow-sm p-2">
-                    <table class="table table-hover align-middle">
-                        <thead>
-                            <tr>
-                                <th>Image</th>
-                                <th>Barcode</th>
-                                <th>Name</th>
-                                <th>Category</th>
-                                <th>SKU</th>
-                                <th>Stock / Limit</th>
-                                <th>Cost</th>
-                                <th>Selling</th>
-                                <th>Expiry</th>
-                                <th>Actions</th>
-                            </tr>
-                        </thead>
-                        <tbody id="inventory-table-body"></tbody>
+                <div id="reports-content"></div>
+            </div>
+        </div>
+
+        <!-- Employees View -->
+        <div id="view-employees" class="app-view" style="display: none;">
+            <div class="card shadow-sm p-4 mb-4">
+                <h5 class="text-primary mb-3"><i class="bi bi-person-plus"></i> Pending Account Verification Requests</h5>
+                <div id="pending-requests-container">
+                    <p class="text-muted small">No pending registration requests at the moment.</p>
+                </div>
+            </div>
+            <div class="card shadow-sm p-4">
+                <div class="d-flex justify-content-between align-items-center mb-3">
+                    <h5 class="mb-0">Active Employee Accounts</h5>
+                    <button class="btn btn-primary btn-sm" onclick="openUserModal()"><i class="bi bi-person-plus"></i> Add Employee User</button>
+                </div>
+                <div class="table-responsive">
+                    <table class="table align-middle">
+                        <thead><tr><th>Picture / Avatar</th><th>Name</th><th>Username</th><th>Password</th><th>Role</th><th>Actions</th></tr></thead>
+                        <tbody id="employee-table-body"></tbody>
                     </table>
                 </div>
             </div>
+        </div>
 
-            <!-- Alerts View -->
-            <div id="view-alerts" class="app-view" style="display: none;">
-                <div class="row">
+        <!-- Settings View -->
+        <div id="view-settings" class="app-view" style="display: none;">
+            <div class="card shadow-sm p-4 mb-3">
+                <h5>System Configurations & Backup</h5>
+                <div class="mb-3">
+                    <label class="form-label">Supermarket Email Account</label>
+                    <input type="email" id="system-email" class="form-control" value="supermarketvincocity@gmail.com">
+                    <button class="btn btn-primary btn-sm mt-2" onclick="saveSystemEmail()">Save Email</button>
+                </div>
+                <hr>
+                <div class="mb-3">
+                    <label class="form-label">Database Backup & Recovery</label>
+                    <div>
+                        <button class="btn btn-success btn-sm me-2" onclick="exportBackup()"><i class="bi bi-download"></i> Download Backup</button>
+                        <input type="file" id="backup-file" class="d-none" onchange="importBackup(event)">
+                        <button class="btn btn-warning btn-sm" onclick="document.getElementById('backup-file').click()"><i class="bi bi-upload"></i> Restore Backup</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Product Modal -->
+<div class="modal fade" id="productModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <form id="product-form" onsubmit="saveProduct(event)">
+                <div class="modal-header">
+                    <h5 class="modal-title">Product Details</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body row g-2">
+                    <input type="hidden" id="prod-id">
+                    <div class="col-md-8">
+                        <label class="form-label">Barcode (Numbers Only)</label>
+                        <input type="text" id="prod-barcode" class="form-control" placeholder="Leave blank or generate" inputmode="numeric" oninput="this.value = this.value.replace(/[^0-9]/g, '')">
+                    </div>
+                    <div class="col-md-4 d-flex align-items-end">
+                        <button type="button" class="btn btn-outline-secondary w-100 btn-sm mb-0 py-2" onclick="generateSingleBarcode()"><i class="bi bi-upc-scan me-1"></i> Generate</button>
+                    </div>
+                    <div class="col-md-6"><label class="form-label">Name</label><input type="text" id="prod-name" class="form-control" required></div>
                     <div class="col-md-6">
-                        <div class="card shadow-sm p-3 mb-3">
-                            <h5 class="text-danger"><i class="bi bi-exclamation-triangle"></i> Expired & Close to Expiry</h5>
-                            <ul id="expiry-alert-list" class="list-group list-group-flush"></ul>
-                        </div>
+                        <label class="form-label">Category</label>
+                        <select id="prod-category" class="form-select" required>
+                            <option value="Groceries">Groceries</option>
+                            <option value="Beverages">Beverages</option>
+                            <option value="Drinks">Drinks</option>
+                            <option value="Household Utensils">Household Utensils</option>
+                            <option value="Body Care">Body Care</option>
+                            <option value="Baby Care">Baby Care</option>
+                        </select>
                     </div>
+                    <div class="col-md-6"><label class="form-label">SKU Number</label><input type="text" id="prod-sku" class="form-control" required></div>
+                    <div class="col-md-6"><label class="form-label">Stock Available</label><input type="number" id="prod-stock" class="form-control" required></div>
+                    <div class="col-md-6"><label class="form-label">Stock Limit Threshold</label><input type="number" id="prod-limit" class="form-control" required></div>
+                    <div class="col-md-6"><label class="form-label">Cost Price (₦)</label><input type="number" step="0.01" id="prod-cost" class="form-control"></div>
+                    <div class="col-md-6"><label class="form-label">Selling Price (₦)</label><input type="number" step="0.01" id="prod-price" class="form-control"></div>
+                    <div class="col-md-6"><label class="form-label">Expiry Date</label><input type="date" id="prod-expiry" class="form-control"></div>
                     <div class="col-md-6">
-                        <div class="card shadow-sm p-3">
-                            <h5 class="text-warning"><i class="bi bi-graph-down"></i> Low Stock Threshold Alerts</h5>
-                            <ul id="stock-alert-list" class="list-group list-group-flush"></ul>
-                        </div>
+                        <label class="form-label">Product Image</label>
+                        <input type="file" id="prod-image-file" class="form-control" accept="image/*" onchange="previewImage(event)">
+                        <input type="hidden" id="prod-image-data">
                     </div>
                 </div>
-            </div>
+                <div class="modal-footer"><button type="submit" class="btn btn-primary">Save Product</button></div>
+            </form>
+        </div>
+    </div>
+</div>
 
-            <!-- Reports View -->
-            <div id="view-reports" class="app-view" style="display: none;">
-                <div class="card shadow-sm p-4 mb-3">
-                    <div class="d-flex justify-content-between align-items-center mb-3">
-                        <h5>Sales & Profits Summary</h5>
-                        <div>
-                            <button class="btn btn-outline-danger btn-sm me-2" onclick="clearSalesData('daily')">Clear Daily</button>
-                            <button class="btn btn-outline-danger btn-sm me-2" onclick="clearSalesData('weekly')">Clear Weekly</button>
-                            <button class="btn btn-outline-danger btn-sm me-2" onclick="clearSalesData('monthly')">Clear Monthly</button>
-                            <button class="btn btn-outline-danger btn-sm" onclick="clearSalesData('yearly')">Clear Yearly</button>
-                        </div>
-                    </div>
-                    <div id="reports-content"></div>
+<!-- User Account Modal (Add / Edit Employee User) -->
+<div class="modal fade" id="userModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <form id="user-form" onsubmit="saveUserAccount(event)">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="user-modal-title">Employee Account Settings</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
                 </div>
-            </div>
+                <div class="modal-body row g-2">
+                    <input type="hidden" id="usr-original-username">
+                    <div class="col-md-12"><label class="form-label">Full Name / Display Name</label><input type="text" id="usr-fullname" class="form-control" required></div>
+                    <div class="col-md-6"><label class="form-label">Username</label><input type="text" id="usr-username" class="form-control" required></div>
+                    <div class="col-md-6"><label class="form-label">Password</label><input type="text" id="usr-password" class="form-control" required></div>
+                    <div class="col-md-6"><label class="form-label">Fallback Avatar Emoji</label><input type="text" id="usr-avatar" class="form-control" value="🧑‍💼" required></div>
+                    <div class="col-md-6">
+                        <label class="form-label">Role</label>
+                        <select id="usr-role" class="form-select" required>
+                            <option value="cashier">Cashier</option>
+                            <option value="storekeeper">Storekeeper</option>
+                            <option value="manager">Manager</option>
+                        </select>
+                    </div>
+                    <div class="col-md-12">
+                        <label class="form-label">Profile Picture Placeholder (Optional)</label>
+                        <input type="file" id="usr-image-file" class="form-control" accept="image/*" onchange="previewUserImage(event, 'usr')">
+                        <input type="hidden" id="usr-image-data">
+                    </div>
+                </div>
+                <div class="modal-footer"><button type="submit" class="btn btn-primary">Save Employee Account</button></div>
+            </form>
+        </div>
+    </div>
+</div>
 
-            <!-- Employees View -->
-            <div id="view-employees" class="app-view" style="display: none;">
-                <div class="card shadow-sm p-4 mb-4">
-                    <h5 class="text-primary mb-3"><i class="bi bi-person-plus"></i> Pending Account Verification Requests</h5>
-                    <div id="pending-requests-container">
-                        <p class="text-muted small">No pending registration requests at the moment.</p>
+<!-- Master Admin / User Profile Modal (My Profile) -->
+<div class="modal fade" id="profileModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <form id="profile-form" onsubmit="saveMyProfile(event)">
+                <div class="modal-header">
+                    <h5 class="modal-title"><i class="bi bi-person-circle me-1"></i> Edit My Profile</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body row g-2">
+                    <div class="col-md-12"><label class="form-label">Full Name / Display Name</label><input type="text" id="prof-fullname" class="form-control" required></div>
+                    <div class="col-md-6"><label class="form-label">Username</label><input type="text" id="prof-username" class="form-control" required></div>
+                    <div class="col-md-6"><label class="form-label">Password</label><input type="text" id="prof-password" class="form-control" required></div>
+                    <div class="col-md-6"><label class="form-label">Fallback Avatar Emoji</label><input type="text" id="prof-avatar" class="form-control" required></div>
+                    <div class="col-md-6">
+                        <label class="form-label">Role (Fixed)</label>
+                        <input type="text" id="prof-role-display" class="form-control bg-light" disabled>
+                    </div>
+                    <div class="col-md-12">
+                        <label class="form-label">Profile Picture (Optional)</label>
+                        <input type="file" id="prof-image-file" class="form-control" accept="image/*" onchange="previewUserImage(event, 'prof')">
+                        <input type="hidden" id="prof-image-data">
                     </div>
                 </div>
-                <div class="card shadow-sm p-4">
-                    <div class="d-flex justify-content-between align-items-center mb-3">
-                        <h5 class="mb-0">Active Employee Accounts</h5>
-                        <button class="btn btn-primary btn-sm" onclick="openUserModal()"><i class="bi bi-person-plus"></i> Add Employee User</button>
-                    </div>
-                    <div class="table-responsive">
-                        <table class="table align-middle">
-                            <thead><tr><th>Picture / Avatar</th><th>Name</th><th>Username</th><th>Password</th><th>Role</th><th>Actions</th></tr></thead>
-                            <tbody id="employee-table-body"></tbody>
-                        </table>
-                    </div>
-                </div>
-            </div>
+                <div class="modal-footer"><button type="submit" class="btn btn-primary">Save Changes</button></div>
+            </form>
+        </div>
+    </div>
+</div>
 
-            <!-- Settings View -->
-            <div id="view-settings" class="app-view" style="display: none;">
-                <div class="card shadow-sm p-4 mb-3">
-                    <h5>System Configurations & Backup</h5>
-                    <div class="mb-3">
-                        <label class="form-label">Supermarket Email Account</label>
-                        <input type="email" id="system-email" class="form-control" value="supermarketvincocity@gmail.com">
-                        <button class="btn btn-primary btn-sm mt-2" onclick="saveSystemEmail()">Save Email</button>
-                    </div>
+<!-- Print Receipt Modal -->
+<div class="modal fade" id="receiptModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content p-3">
+            <div id="receipt-content">
+                <div class="text-center">
+                    <h5>Vinco City Supermarket</h5>
+                    <p class="small mb-1">208 Nnebisi road, opposite GT bank, Asaba, Delta state</p>
+                    <p class="small mb-1">email: supermarketvincocity@gmail.com</p>
                     <hr>
-                    <div class="mb-3">
-                        <label class="form-label">Database Backup & Recovery</label>
-                        <div>
-                            <button class="btn btn-success btn-sm me-2" onclick="exportBackup()"><i class="bi bi-download"></i> Download Backup</button>
-                            <input type="file" id="backup-file" class="d-none" onchange="importBackup(event)">
-                            <button class="btn btn-warning btn-sm" onclick="document.getElementById('backup-file').click()"><i class="bi bi-upload"></i> Restore Backup</button>
-                        </div>
-                    </div>
                 </div>
+                <div id="receipt-details"></div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                <button class="btn btn-primary" onclick="window.print()">Print Receipt</button>
             </div>
         </div>
     </div>
-
-    <!-- Product Modal -->
-    <div class="modal fade" id="productModal" tabindex="-1">
-        <div class="modal-dialog">
-            <div class="modal-content">
-                <form id="product-form" onsubmit="saveProduct(event)">
-                    <div class="modal-header">
-                        <h5 class="modal-title">Product Details</h5>
-                        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-                    </div>
-                    <div class="modal-body row g-2">
-                        <input type="hidden" id="prod-id">
-                        <div class="col-md-8">
-                            <label class="form-label">Barcode (Numbers Only)</label>
-                            <input type="text" id="prod-barcode" class="form-control" placeholder="Leave blank or generate" inputmode="numeric" oninput="this.value = this.value.replace(/[^0-9]/g, '')">
-                        </div>
-                        <div class="col-md-4 d-flex align-items-end">
-                            <button type="button" class="btn btn-outline-secondary w-100 btn-sm mb-0 py-2" onclick="generateSingleBarcode()"><i class="bi bi-upc-scan me-1"></i> Generate</button>
-                        </div>
-                        <div class="col-md-6"><label class="form-label">Name</label><input type="text" id="prod-name" class="form-control" required></div>
-                        <div class="col-md-6">
-                            <label class="form-label">Category</label>
-                            <select id="prod-category" class="form-select" required>
-                                <option value="Groceries">Groceries</option>
-                                <option value="Beverages">Beverages</option>
-                                <option value="Drinks">Drinks</option>
-                                <option value="Household Utensils">Household Utensils</option>
-                                <option value="Body Care">Body Care</option>
-                                <option value="Baby Care">Baby Care</option>
-                            </select>
-                        </div>
-                        <div class="col-md-6"><label class="form-label">SKU Number</label><input type="text" id="prod-sku" class="form-control" required></div>
-                        <div class="col-md-6"><label class="form-label">Stock Available</label><input type="number" id="prod-stock" class="form-control" required></div>
-                        <div class="col-md-6"><label class="form-label">Stock Limit Threshold</label><input type="number" id="prod-limit" class="form-control" required></div>
-                        <div class="col-md-6"><label class="form-label">Cost Price (₦)</label><input type="number" step="0.01" id="prod-cost" class="form-control"></div>
-                        <div class="col-md-6"><label class="form-label">Selling Price (₦)</label><input type="number" step="0.01" id="prod-price" class="form-control"></div>
-                        <div class="col-md-6"><label class="form-label">Expiry Date</label><input type="date" id="prod-expiry" class="form-control"></div>
-                        <div class="col-md-6">
-                            <label class="form-label">Product Image</label>
-                            <input type="file" id="prod-image-file" class="form-control" accept="image/*" onchange="previewImage(event)">
-                            <input type="hidden" id="prod-image-data">
-                        </div>
-                    </div>
-                    <div class="modal-footer"><button type="submit" class="btn btn-primary">Save Product</button></div>
-                </form>
-            </div>
-        </div>
-    </div>
-
-    <!-- User Account Modal (Add / Edit Employee User) -->
-    <div class="modal fade" id="userModal" tabindex="-1">
-        <div class="modal-dialog">
-            <div class="modal-content">
-                <form id="user-form" onsubmit="saveUserAccount(event)">
-                    <div class="modal-header">
-                        <h5 class="modal-title" id="user-modal-title">Employee Account Settings</h5>
-                        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-                    </div>
-                    <div class="modal-body row g-2">
-                        <input type="hidden" id="usr-original-username">
-                        <div class="col-md-12"><label class="form-label">Full Name / Display Name</label><input type="text" id="usr-fullname" class="form-control" required></div>
-                        <div class="col-md-6"><label class="form-label">Username</label><input type="text" id="usr-username" class="form-control" required></div>
-                        <div class="col-md-6"><label class="form-label">Password</label><input type="text" id="usr-password" class="form-control" required></div>
-                        <div class="col-md-6"><label class="form-label">Fallback Avatar Emoji</label><input type="text" id="usr-avatar" class="form-control" value="🧑‍💼" required></div>
-                        <div class="col-md-6">
-                            <label class="form-label">Role</label>
-                            <select id="usr-role" class="form-select" required>
-                                <option value="cashier">Cashier</option>
-                                <option value="storekeeper">Storekeeper</option>
-                                <option value="manager">Manager</option>
-                            </select>
-                        </div>
-                        <div class="col-md-12">
-                            <label class="form-label">Profile Picture Placeholder (Optional)</label>
-                            <input type="file" id="usr-image-file" class="form-control" accept="image/*" onchange="previewUserImage(event, 'usr')">
-                            <input type="hidden" id="usr-image-data">
-                        </div>
-                    </div>
-                    <div class="modal-footer"><button type="submit" class="btn btn-primary">Save Employee Account</button></div>
-                </form>
-            </div>
-        </div>
-    </div>
-
-    <!-- Master Admin / User Profile Modal (My Profile) -->
-    <div class="modal fade" id="profileModal" tabindex="-1">
-        <div class="modal-dialog">
-            <div class="modal-content">
-                <form id="profile-form" onsubmit="saveMyProfile(event)">
-                    <div class="modal-header">
-                        <h5 class="modal-title"><i class="bi bi-person-circle me-1"></i> Edit My Profile</h5>
-                        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-                    </div>
-                    <div class="modal-body row g-2">
-                        <div class="col-md-12"><label class="form-label">Full Name / Display Name</label><input type="text" id="prof-fullname" class="form-control" required></div>
-                        <div class="col-md-6"><label class="form-label">Username</label><input type="text" id="prof-username" class="form-control" required></div>
-                        <div class="col-md-6"><label class="form-label">Password</label><input type="text" id="prof-password" class="form-control" required></div>
-                        <div class="col-md-6"><label class="form-label">Fallback Avatar Emoji</label><input type="text" id="prof-avatar" class="form-control" required></div>
-                        <div class="col-md-6">
-                            <label class="form-label">Role (Fixed)</label>
-                            <input type="text" id="prof-role-display" class="form-control bg-light" disabled>
-                        </div>
-                        <div class="col-md-12">
-                            <label class="form-label">Profile Picture (Optional)</label>
-                            <input type="file" id="prof-image-file" class="form-control" accept="image/*" onchange="previewUserImage(event, 'prof')">
-                            <input type="hidden" id="prof-image-data">
-                        </div>
-                    </div>
-                    <div class="modal-footer"><button type="submit" class="btn btn-primary">Save Changes</button></div>
-                </form>
-            </div>
-        </div>
-    </div>
-
-    <!-- Print Receipt Modal -->
-    <div class="modal fade" id="receiptModal" tabindex="-1">
-        <div class="modal-dialog">
-            <div class="modal-content p-3">
-                <div id="receipt-content">
-                    <div class="text-center">
-                        <h5>Vinco City Supermarket</h5>
-                        <p class="small mb-1">208 Nnebisi road, opposite GT bank, Asaba, Delta state</p>
-                        <p class="small mb-1">email: supermarketvincocity@gmail.com</p>
-                        <hr>
-                    </div>
-                    <div id="receipt-details"></div>
-                </div>
-                <div class="modal-footer">
-                    <button class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
-                    <button class="btn btn-primary" onclick="window.print()">Print Receipt</button>
-                </div>
-            </div>
-        </div>
-    </div>
+</div>
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
-    <script type="module">
-document.addEventListener('DOMContentLoaded', () => {
-    const toggleBtn = document.getElementById('toggle-password-btn');
-    if (toggleBtn) {
-        toggleBtn.addEventListener('click', () => {
-            const input = document.getElementById('login-password');
-            if (input) {
-                input.type = input.type === 'password' ? 'text' : 'password';
-            }
-        });
-    }
-});
-        let db = JSON.parse(localStorage.getItem('vinco_db')) || {
-            users: [
-                { username: 'admin', password: 'password123', role: 'admin', avatar: '👑', picture: '', status: 'active', fullname: 'System Admin' }
-            ],
-            requests: [],
-            products: [],
-            sales: [],
-            email: 'supermarketvincocity@gmail.com'
-        };
-
-        let currentUser = null;
-        let cart = [];
-
-        function syncDB() {
-            localStorage.setItem('vinco_db', JSON.stringify(db));
-            updatePendingBadge();
+<script>
+    document.addEventListener('DOMContentLoaded', () => {
+        const toggleBtn = document.getElementById('toggle-password-btn');
+        if (toggleBtn) {
+            toggleBtn.addEventListener('click', () => {
+                const input = document.getElementById('login-password');
+                if (input) {
+                    input.type = input.type === 'password' ? 'text' : 'password';
+                }
+            });
         }
+    });
 
-        window.addEventListener('storage', (e) => {
-            if (e.key === 'vinco_db') {
-                db = JSON.parse(e.newValue);
-                refreshCurrentView();
-                updatePendingBadge();
-            }
-        });
+    let db = JSON.parse(localStorage.getItem('vinco_db')) || {
+        users: [
+            { username: 'admin', password: 'password123', role: 'admin', avatar: '👑', picture: '', status: 'active', fullname: 'System Admin' }
+        ],
+        requests: [],
+        products: [],
+        sales: [],
+        email: 'supermarketvincocity@gmail.com'
+    };
 
-        function togglePasswordVisibility(fieldId) {
+    let currentUser = null;
+    let cart = [];
+
+    window.syncDB = function() {
+        localStorage.setItem('vinco_db', JSON.stringify(db));
+        if (typeof updatePendingBadge === 'function') updatePendingBadge();
+    };
+
+    window.addEventListener('storage', (e) => {
+        if (e.key === 'vinco_db') {
+            db = JSON.parse(e.newValue);
+            if (typeof refreshCurrentView === 'function') refreshCurrentView();
+            if (typeof updatePendingBadge === 'function') updatePendingBadge();
+        }
+    });
+
+    window.openProfileModal = function() {
+        const modalEl = document.getElementById('profileModal');
+        if (modalEl) {
+            const modal = bootstrap.Modal.getInstance(modalEl) || new bootstrap.Modal(modalEl);
+            modal.show();
+        }
+    };
+
+    window.togglePasswordVisibility = function(fieldId) {
         const input = document.getElementById(fieldId || 'login-password');
         if (input) {
             input.type = input.type === 'password' ? 'text' : 'password';
         }
+    };
+
+    window.triggerSync = function() {
+        window.syncDB();
+        alert('Data synced successfully across devices!');
+    };
+
+    window.switchAuthRoute = function(route) {
+    const loginWin = document.getElementById('login-window');
+    const regWin = document.getElementById('register-window');
+    if (!loginWin || !regWin) return;
+
+    if (route === 'register') {
+        loginWin.style.display = 'none';
+        regWin.style.display = 'block';
+    } else {
+        regWin.style.display = 'none';
+        loginWin.style.display = 'block';
     }
+};
 
-        function triggerSync() {
-            syncDB();
-            alert('Data synced successfully across devices!');
+    window.handleLogin = async function(event) {
+        if (event) event.preventDefault();
+        
+        const usernameInput = document.getElementById('login-username');
+        const passwordInput = document.getElementById('login-password');
+
+        if (!usernameInput || !passwordInput) {
+            console.error('Login form elements not found.');
+            return;
         }
 
-        function switchAuthRoute(route) {
-            if (route === 'register') {
-                document.getElementById('login-window').style.display = 'none';
-                document.getElementById('register-window').style.display = 'block';
+        try {
+            const response = await fetch('https://quickcheck-12.onrender.com/api/login', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    username: usernameInput.value.trim(),
+                    password: passwordInput.value
+                })
+            });
+
+            const data = await response.json();
+            if (response.ok) {
+                alert('Login successful!');
+                localStorage.setItem('token', data.token);
+                
+                const authWrap = document.getElementById('auth-wrapper');
+                const appWrap = document.getElementById('app-wrapper');
+                if (authWrap) authWrap.style.display = 'none';
+                if (appWrap) appWrap.style.display = 'flex';
+                
+                if (typeof updateSidebarUserDisplay === 'function') {
+                    updateSidebarUserDisplay();
+                }
             } else {
-                document.getElementById('register-window').style.display = 'none';
-                document.getElementById('login-window').style.display = 'block';
+                alert(data.error || 'Login failed');
             }
+        } catch (err) {
+            console.error('Login error:', err);
+            alert('Could not connect to the server.');
         }
+    };
 
         window.handleLogin = async function(event) {
     if (event) event.preventDefault();
@@ -545,7 +643,11 @@ document.addEventListener('DOMContentLoaded', () => {
 
 function updateSidebarUserDisplay() {
     if (typeof currentUser === 'undefined' || !currentUser) return;
-    document.getElementById('sidebar-username').innerText = currentUser.fullname || currentUser.username;
+    
+    const usernameEl = document.getElementById('sidebar-username');
+    if (usernameEl) {
+        usernameEl.innerText = currentUser.fullname || currentUser.username;
+    }
     
     const roleLabels = {
         admin: 'Master Admin',
@@ -553,13 +655,19 @@ function updateSidebarUserDisplay() {
         storekeeper: 'Storekeeper',
         cashier: 'Cashier'
     };
-    document.getElementById('sidebar-role').innerHTML = `${roleLabels[currentUser.role] || 'Employee'} <i class="bi bi-pencil-square ms-1 small"></i>`;
+    
+    const roleEl = document.getElementById('sidebar-role');
+    if (roleEl) {
+        roleEl.innerHTML = `${roleLabels[currentUser.role] || 'Employee'} <i class="bi bi-pencil-square ms-1 small"></i>`;
+    }
     
     const avatarContainer = document.getElementById('user-avatar-display-container');
-    if (currentUser.picture) {
-        avatarContainer.innerHTML = `<img src="${currentUser.picture}" class="rounded-circle" width="40" height="40" style="object-fit:cover;">`;
-    } else {
-        avatarContainer.innerHTML = `<span id="user-avatar-display" class="fs-3">${currentUser.avatar || '👤'}</span>`;
+    if (avatarContainer) {
+        if (currentUser.picture) {
+            avatarContainer.innerHTML = `<img src="${currentUser.picture}" class="rounded-circle" width="40" height="40" style="object-fit:cover;">`;
+        } else {
+            avatarContainer.innerHTML = `<span id="user-avatar-display" class="fs-3">${currentUser.avatar || '👤'}</span>`;
+        }
     }
 }
 
@@ -569,6 +677,7 @@ window.togglePasswordVisibility = function(fieldId) {
         input.type = input.type === 'password' ? 'text' : 'password';
     }
 };
+
 window.handleLogin = async function(event) {
     if (event) event.preventDefault();
 
@@ -580,78 +689,78 @@ window.handleLogin = async function(event) {
         return;
     }
 
+    const payload = {
+        username: userField.value.trim(),
+        password: passField.value
+    };
+
+    console.log("Sending login payload:", payload);
+
     try {
         var apiResponse = await fetch('https://quickcheck-12.onrender.com/api/login', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                username: userField.value,
-                password: passField.value
-            })
+            body: JSON.stringify(payload)
         });
 
         var resultJson = await apiResponse.json();
 
-        if (apiResponse.ok) {
-            localStorage.setItem('vinco_token', resultJson.token);
-            var authWrap = document.getElementById('auth-wrapper');
-            var appWrap = document.getElementById('app-wrapper');
-            if (authWrap) authWrap.style.display = 'none';
-            if (appWrap) appWrap.style.display = 'flex';
-            if (typeof updateSidebarUserDisplay === 'function') {
-                updateSidebarUserDisplay();
-            }
-        } else {
-            alert(resultJson.error || 'Operation failed');
+        if (!apiResponse.ok) {
+            console.error("Server rejected login:", resultJson);
+            alert(resultJson.message || resultJson.error || 'Operation failed');
+            return;
+        }
+
+        localStorage.setItem('token', resultJson.token);
+        console.log("Token saved successfully!");
+
+        var authWrap = document.getElementById('auth-wrapper');
+        var appWrap = document.getElementById('app-wrapper');
+        if (authWrap) authWrap.style.display = 'none';
+        if (appWrap) appWrap.style.display = 'flex';
+
+        if (typeof updateSidebarUserDisplay === 'function') {
+            updateSidebarUserDisplay();
         }
     } catch (networkError) {
         console.error('Connection error:', networkError);
         alert('Unable to connect to the server.');
     }
 };
-
-           // Check around line 608 for any lingering code using 'data' and replace that entire section with this safe block:
-try {
-    var response = await fetch('https://quickcheck-12.onrender.com/api/login', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-            username: document.getElementById('login-username').value,
-            password: document.getElementById('login-password').value
-        })
-    });
-
-    var responseData = await response.json();
-
-    if (response.ok) {
-        localStorage.setItem('vinco_token', responseData.token);
-        document.getElementById('auth-wrapper').style.display = 'none';
-        document.getElementById('app-wrapper').style.display = 'flex';
-        if (typeof updateSidebarUserDisplay === 'function') {
-            updateSidebarUserDisplay();
-        }
-    } else {
-        alert(responseData.error || 'Operation failed');
-    }
-} catch (error) {
-    console.error('Connection error:', error);
-    alert('Unable to connect to the server.');
-}
             
-            // Configure sidebar navigation visibility per role
-           
+ // Configure sidebar navigation visibility per role        
+// Default view based on role
+        async function handleLogin(event) {
+    if (event) event.preventDefault();
 
-            // Default view based on role
-         const data = await response.json();
+    const payload = { 
+        username: document.getElementById('login-username')?.value || '', 
+        password: document.getElementById('login-password')?.value || '' 
+    };
+
+    try {
+        console.log("Sending login payload:", payload);
+        const response = await fetch('https://quickcheck-12.onrender.com/api/login', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+        });
+        
+        const data = await response.json();
 
         if (response.ok) {
-            localStorage.setItem('vinco_token', data.token);
-            document.getElementById('auth-wrapper').style.display = 'none';
-            document.getElementById('app-wrapper').style.display = 'flex';
+            alert('Login successful!');
+            localStorage.setItem('token', data.token);
         } else {
-            alert(data.error || 'Operation failed');
+            alert(data.error || 'Login failed');
+        }
+    } catch (err) {
+        console.error('Login error:', err);
+        alert('Could not connect to the server.');
+    }
 }
-       window.updateSidebarUserDisplay = function() {
+
+window.updateSidebarUserDisplay = function() {
     if (typeof currentUser === 'undefined' || !currentUser) return;
     
     const usernameEl = document.getElementById('sidebar-username');
@@ -680,36 +789,8 @@ try {
         }
     }
 };
-    
-    const roleEl = document.getElementById('sidebar-role');
-    if (roleEl) {
-        roleEl.innerHTML = `${roleLabels[currentUser.role] || 'Employee'} <i class="bi bi-pencil-square ms-1 small"></i>`;
-    }
-    
-    const avatarContainer = document.getElementById('user-avatar-display-container');
-    if (avatarContainer) {
-        if (currentUser.picture) {
-            avatarContainer.innerHTML = `<img src="${currentUser.picture}" class="rounded-circle" width="40" height="40" style="object-fit:cover;">`;
-        } else {
-            avatarContainer.innerHTML = `<span id="user-avatar-display" class="fs-3">${currentUser.avatar || '👤'}</span>`;
-        }
-    }
 
-        function openProfileModal() {
-            if (!currentUser) return;
-            document.getElementById('profile-form').reset();
-            document.getElementById('prof-fullname').value = currentUser.fullname || '';
-            document.getElementById('prof-username').value = currentUser.username;
-            document.getElementById('prof-password').value = currentUser.password;
-            document.getElementById('prof-avatar').value = currentUser.avatar || '👑';
-            
-            const roleLabels = { admin: 'Master Admin', manager: 'Manager', storekeeper: 'Storekeeper', cashier: 'Cashier' };
-            document.getElementById('prof-role-display').value = roleLabels[currentUser.role] || currentUser.role;
-            document.getElementById('prof-image-data').value = currentUser.picture || '';
-
-            new bootstrap.Modal(document.getElementById('profileModal')).show();
-        }
-
+        
         function saveMyProfile(e) {
             e.preventDefault();
             if (!currentUser) return;
@@ -1000,129 +1081,125 @@ try {
             renderPOSGrid();
         }
 
-        function renderInventoryTable() {
-            const tbody = document.getElementById('inventory-table-body');
-            const query = document.getElementById('inv-search').value.toLowerCase();
-            tbody.innerHTML = '';
-            db.products.filter(p => p.name.toLowerCase().includes(query) || (p.barcode && p.barcode.toLowerCase().includes(query)) || p.sku.toLowerCase().includes(query)).forEach(p => {
-                let expiryStatus = '';
-                if (p.expiryDate) {
-                    const days = (new Date(p.expiryDate) - new Date()) / (1000 * 60 * 60 * 24);
-                    if (days < 0) expiryStatus = '<span class="badge bg-danger">EXPIRED</span>';
-                    else if (days <= 60) expiryStatus = '<span class="badge bg-warning text-dark">Expires Soon</span>';
-                }
-                const tr = document.createElement('tr');
-                tr.innerHTML = `
-                    <td><img src="${p.image || 'https://placehold.co/150'}" width="40" height="40" style="object-fit:cover;"></td>
-                    <td><code>${p.barcode || 'N/A'}</code></td>
-                    <td><strong>${p.name}</strong> ${expiryStatus}</td>
-                    <td>${p.category}</td>
-                    <td>${p.sku}</td>
-                    <td>${p.stock} / ${p.limit}</td>
-                    <td>${p.costPrice !== null ? '₦' + p.costPrice : 'Blank'}</td>
-                    <td>${p.sellingPrice !== null ? '₦' + p.sellingPrice : 'Blank'}</td>
-                    <td>${p.expiryDate || 'Blank'}</td>
-                    <td>
-                        <button class="btn btn-sm btn-outline-warning me-1" onclick="openProductModal(${p.id})"><i class="bi bi-pencil"></i></button>
-                        <button class="btn btn-sm btn-outline-danger" onclick="deleteProduct(${p.id})"><i class="bi bi-trash"></i></button>
-                    </td>
-                `;
-                tbody.appendChild(tr);
-            });
+    function renderInventoryTable() {
+    const tbody = document.getElementById('inventory-table-body');
+    const query = document.getElementById('inv-search').value.toLowerCase();
+    tbody.innerHTML = '';
+    
+    db.products.filter(p => p.name.toLowerCase().includes(query) || (p.barcode && p.barcode.toLowerCase().includes(query)) || p.sku.toLowerCase().includes(query)).forEach(p => {
+        let expiryStatus = '';
+        if (p.expiryDate) {
+            const days = (new Date(p.expiryDate) - new Date()) / (1000 * 60 * 60 * 24);
+            if (days < 0) expiryStatus = '<span class="badge bg-danger">EXPIRED</span>';
+            else if (days <= 60) expiryStatus = '<span class="badge bg-warning text-dark">Expires Soon</span>';
+        }
+        
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+            <td><img src="${p.image || 'https://placehold.co/150'}" width="40" height="40" style="object-fit:cover;"></td>
+            <td><code>${p.barcode || 'N/A'}</code></td>
+            <td><strong>${p.name}</strong> ${expiryStatus}</td>
+            <td>${p.category}</td>
+            <td>${p.sku}</td>
+            <td>${p.stock} / ${p.limit}</td>
+            <td>${p.costPrice !== null ? '₦' + p.costPrice : 'Blank'}</td>
+            <td>${p.sellingPrice !== null ? '₦' + p.sellingPrice : 'Blank'}</td>
+            <td>${p.expiryDate || 'Blank'}</td>
+            <td>
+                <button class="btn btn-sm btn-outline-warning me-1" onclick="openProductModal(${p.id})"><i class="bi bi-pencil"></i></button>
+                <button class="btn btn-sm btn-outline-danger" onclick="deleteProduct(${p.id})"><i class="bi bi-trash"></i></button>
+            </td>
+        `;
+        tbody.appendChild(tr);
+    });
+}
 
+function getProductStatusBadge(status) {
+    const statusMap = {
+        'in_stock': { class: 'bg-success', label: 'In Stock' },
+        'low_stock': { class: 'bg-warning text-dark', label: 'Low Stock' },
+        'out_of_stock': { class: 'bg-danger', label: 'Out of Stock' },
+        'discontinued': { class: 'bg-secondary', label: 'Discontinued' }
+    };
+    const config = statusMap[status] || { class: 'bg-light text-dark', label: status || 'Unknown' };
+    return `<span class="badge ${config.class}">${config.label}</span>`;
+}
 
+function renderProducts() {
+    const tbody = document.getElementById('productTableBody');
+    if (!tbody) return;
 
-            // Helper function for product status badges
-    function getproductstatusbadge(status) {
-        const statusMap = {
-            'in_stock': { class: 'bg-success', label: 'In Stock' },
-            'low_stock': { class: 'bg-warning text-dark', label: 'Low Stock' },
-            'out_of_stock': { class: 'bg-danger', label: 'Out of Stock' },
-            'discontinued': { class: 'bg-secondary', label: 'Discontinued' }
-        };
-        const config = statusMap[status] || { class: 'bg-light text-dark', label: status || 'Unknown' };
-        return `<span class="badge ${config.class}">${config.label}</span>`;
+    tbody.innerHTML = '';
+    if (!db.products || db.products.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="5" class="text-center text-muted">No products found.</td></tr>`;
+        return;
     }
 
-    // Example usage inside your product table rendering loop:
-    function renderProducts() {
-        const tbody = document.getElementById('productTableBody');
-        if (!tbody) return;
+    db.products.forEach(p => {
+        const isLowStock = p.status === 'low_stock' || (p.stock > 0 && p.stock < 5);
+        const isOutStock = p.status === 'out_of_stock' || p.stock === 0;
 
-        tbody.innerHTML = '';
-        if (!db.products || db.products.length === 0) {
-            tbody.innerHTML = `<tr><td colspan="5" class="text-center text-muted">No products found.</td></tr>`;
-            return;
-        }
+        let rowClass = '';
+        if (isOutStock) rowClass = 'table-danger';
+        else if (isLowStock) rowClass = 'table-warning';
 
-        db.products.forEach((p, idx) => {
-            // Determine threshold alerts (e.g., stock below 5 is low, 0 is out)
-            const isLowStock = p.status === 'low_stock' || (p.stock > 0 && p.stock < 5);
-            const isOutStock = p.status === 'out_of_stock' || p.stock === 0;
-
-            // Apply Bootstrap table row classes for visual alerts
-            let rowClass = '';
-            if (isOutStock) rowClass = 'table-danger';
-            else if (isLowStock) rowClass = 'table-warning';
-
-            const tr = document.createElement('tr');
-            tr.className = rowClass;
-            tr.innerHTML = `
-                <td>
-                    <div class="d-flex align-items-center justify-content-between">
-                        <div>
-                            <strong>${p.name}</strong><br>
-                            <small class="text-muted">SKU: ${p.sku}</small>
-                        </div>
-                        ${isLowStock ? '<span class="badge bg-dark text-warning ms-2"><i class="bi bi-exclamation-triangle"></i> Low Stock Alert</span>' : ''}
-                        ${isOutStock ? '<span class="badge bg-dark text-danger ms-2"><i class="bi bi-x-octagon"></i> Out of Stock</span>' : ''}
+        const tr = document.createElement('tr');
+        tr.className = rowClass;
+        tr.innerHTML = `
+            <td>
+                <div class="d-flex align-items-center justify-content-between">
+                    <div>
+                        <strong>${p.name}</strong><br>
+                        <small class="text-muted">SKU: ${p.sku}</small>
                     </div>
-                </td>
-                <td>$${Number(p.price).toFixed(2)}</td>
-                <td><strong>${p.stock}</strong></td>
-                <td>${getproductstatusbadge(p.status)}</td>
-                <td>
-                    <button class="btn btn-sm btn-outline-danger" onclick="deleteProduct(${idx})">
-                        <i class="bi bi-trash"></i>
-                    </button>
-                </td>
-            `;
-            tbody.appendChild(tr);
-        });
-    }
+                    ${isLowStock ? '<span class="badge bg-dark text-warning ms-2"><i class="bi bi-exclamation-triangle"></i> Low Stock Alert</span>' : ''}
+                    ${isOutStock ? '<span class="badge bg-dark text-danger ms-2"><i class="bi bi-x-octagon"></i> Out of Stock</span>' : ''}
+                </div>
+            </td>
+            <td>₦${p.sellingPrice !== null ? Number(p.sellingPrice).toFixed(2) : '0.00'}</td>
+            <td><strong>${p.stock}</strong></td>
+            <td>${getProductStatusBadge(p.status)}</td>
+            <td>
+                <button class="btn btn-sm btn-outline-danger" onclick="deleteProduct(${p.id})">
+                    <i class="bi bi-trash"></i>
+                </button>
+            </td>
+        `;
+        tbody.appendChild(tr);
+    });
+}
+
+function checkInventoryAlertsOnLogin() {
+    if (!db.products || db.products.length === 0) return;
+
+    const today = new Date();
+    const expiredItems = [];
+    const lowStockItems = [];
+
+    db.products.forEach(p => {
+        if (p.expiryDate) {
+            const expiryDate = new Date(p.expiryDate);
+            const diffDays = Math.ceil((expiryDate - today) / (1000 * 60 * 60 * 24));
+            if (diffDays <= 0) {
+                expiredItems.push(`${p.name} (Expired)`);
+            }
         }
 
-        function checkInventoryAlertsOnLogin() {
-        if (!db.products || db.products.length === 0) return;
-
-        const today = new Date();
-        const expiredItems = [];
-        const lowStockItems = [];
-
-        db.products.forEach(p => {
-            if (p.expiryDate) {
-                const expiryDate = new Date(p.expiryDate);
-                const diffDays = Math.ceil((expiryDate - today) / (1000 * 60 * 60 * 24));
-                if (diffDays <= 0) {
-                    expiredItems.push(`${p.name} (Expired)`);
-                }
-            }
-
-            const threshold = p.limit !== undefined ? p.limit : 5;
-            if (p.stock <= threshold) {
-                lowStockItems.push(`${p.name} (Stock: ${p.stock})`);
-            }
-        });
-
-        if (expiredItems.length > 0 || lowStockItems.length > 0) {
-            let message = '⚠️ INVENTORY ALERTS DETECTED ⚠️\n\n';
-            if (expiredItems.length > 0) message += `🔴 Expired: ${expiredItems.length} items\n`;
-            if (lowStockItems.length > 0) message += `🟡 Low Stock: ${lowStockItems.length} items\n`;
-            message += '\nCheck the Alerts tab for full details.';
-            
-            setTimeout(() => alert(message), 500);
+        const threshold = p.limit !== undefined ? p.limit : 5;
+        if (p.stock <= threshold) {
+            lowStockItems.push(`${p.name} (Stock: ${p.stock})`);
         }
+    });
+
+    if (expiredItems.length > 0 || lowStockItems.length > 0) {
+        let message = '⚠️ INVENTORY ALERTS DETECTED ⚠️\n\n';
+        if (expiredItems.length > 0) message += `🔴 Expired: ${expiredItems.length} items\n`;
+        if (lowStockItems.length > 0) message += `🟡 Low Stock: ${lowStockItems.length} items\n`;
+        message += '\nCheck the Alerts tab for full details.';
+        
+        setTimeout(() => alert(message), 500);
     }
+}
 
 
         function generateSingleBarcode() {
@@ -1285,35 +1362,68 @@ try {
                     </div>
                 </div>
             </div>
-
-            <div class="card p-4 shadow-sm">
-                <div class="d-flex justify-content-between align-items-center mb-3">
-                    <h5 class="mb-0">Profit Terminal & Sales Breakdown</h5>
-                    <button class="btn btn-outline-danger btn-sm" onclick="clearSalesData('all')">
-                        <i class="bi bi-trash me-1"></i> Clear Sales History
-                    </button>
-                </div>
-                <div class="table-responsive">
-                    <table class="table table-hover align-middle">
-                        <thead class="table-light">
-                            <tr>
-                                <th>Date & Time</th>
-                                <th>Payment Method</th>
-                                <th>Items Count</th>
-                                <th>Revenue</th>
-                                <th>Est. Profit</th>
-                            </tr>
-                        </thead>
-                        <tbody id="sales-breakdown-tbody">
-                            ${db.sales.length === 0 ? `<tr><td colspan="5" class="text-center text-muted py-4">No sales recorded yet.</td></tr>` : ''}
-                        </tbody>
-                    </table>
+        `;
+    }
+        function renderReports() {
+    container.innerHTML = `
+        <div class="row g-3 mb-4">
+            <div class="col-md-3 col-sm-6">
+                <div class="card p-3 border-success shadow-sm h-100">
+                    <div class="text-muted small">Total Revenue</div>
+                    <h4 class="text-success fw-bold mb-0">₦${totalRevenue.toLocaleString()}</h4>
                 </div>
             </div>
-        `;
+            <div class="col-md-3 col-sm-6">
+                <div class="card p-3 border-danger shadow-sm h-100">
+                    <div class="text-muted small">Total Cost of Goods</div>
+                    <h4 class="text-danger fw-bold mb-0">₦${totalCost.toLocaleString()}</h4>
+                </div>
+            </div>
+            <div class="col-md-3 col-sm-6">
+                <div class="card p-3 border-primary shadow-sm h-100">
+                    <div class="text-muted small">Net Gross Profit</div>
+                    <h4 class="text-primary fw-bold mb-0">₦${grossProfit.toLocaleString()}</h4>
+                    <small class="text-muted">Margin: ${profitMargin}%</small>
+                </div>
+            </div>
+            <div class="col-md-3 col-sm-6">
+                <div class="card p-3 border-warning shadow-sm h-100">
+                    <div class="text-muted small">Units Sold</div>
+                    <h4 class="text-dark fw-bold mb-0">${totalItemsSold}</h4>
+                    <small class="text-muted">Transactions: ${db.sales.length}</small>
+                </div>
+            </div>
+        </div>
 
-        if (db.sales.length > 0) {
-            const tbody = document.getElementById('sales-breakdown-tbody');
+        <div class="card p-4 shadow-sm">
+            <div class="d-flex justify-content-between align-items-center mb-3">
+                <h5 class="mb-0">Profit Terminal & Sales Breakdown</h5>
+                <button class="btn btn-outline-danger btn-sm" onclick="clearSalesData('all')">
+                    <i class="bi bi-trash me-1"></i> Clear Sales History
+                </button>
+            </div>
+            <div class="table-responsive">
+                <table class="table table-hover align-middle">
+                    <thead class="table-light">
+                        <tr>
+                            <th>Date & Time</th>
+                            <th>Payment Method</th>
+                            <th>Items Count</th>
+                            <th>Revenue</th>
+                            <th>Est. Profit</th>
+                        </tr>
+                    </thead>
+                    <tbody id="sales-breakdown-tbody">
+                        ${db.sales.length === 0 ? `<tr><td colspan="5" class="text-center text-muted py-4">No sales recorded yet.</td></tr>` : ''}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    `;
+
+    if (db.sales.length > 0) {
+        const tbody = document.getElementById('sales-breakdown-tbody');
+        if (tbody) {
             tbody.innerHTML = '';
             
             db.sales.slice().reverse().forEach(sale => {
@@ -1340,14 +1450,15 @@ try {
             });
         }
     }
+}
 
-        function clearSalesData(period) {
-            if (confirm(`Clear ${period} sales data?`)) {
-                db.sales = [];
-                syncDB();
-                renderReports();
-            }
-        }
+function clearSalesData(period) {
+    if (confirm(`Clear ${period} sales data?`)) {
+        db.sales = [];
+        syncDB();
+        renderReports();
+    }
+}
 
         function renderEmployees() {
             const reqContainer = document.getElementById('pending-requests-container');
@@ -1383,7 +1494,6 @@ try {
 
             if (employeeUsers.length === 0) {
                 tbody.innerHTML = `<tr><td colspan="6" class="text-center text-muted py-3">No active employee accounts found.</td></tr>`;
-                return;
             }
 
             employeeUsers.forEach((u) => {
@@ -1406,6 +1516,7 @@ try {
             });
             updatePendingBadge();
         }
+        
 
         function openUserModal(username = null) {
             document.getElementById('user-form').reset();
@@ -1485,71 +1596,133 @@ try {
             alert(`Employee @${req.username} has been approved as ${req.role} and can now log in.`);
         }
 
-        function rejectRequest(idx) {
-            if (confirm('Reject and delete this registration request?')) {
-                db.requests.splice(idx, 1);
-                syncDB();
-                renderEmployees();
-            }
-        }
-
-        function deleteEmployee(idx) {
-            if (confirm('Delete this employee account?')) {
-                db.users.splice(idx, 1);
-                syncDB();
-                renderEmployees();
-            }
-        }
-
-        function saveSystemEmail() {
-            db.email = document.getElementById('system-email').value;
+       function rejectRequest(idx) {
+        if (confirm('Reject and delete this registration request?')) {
+            db.requests.splice(idx, 1);
             syncDB();
-            alert('Email updated.');
+            renderEmployees();
         }
+    }
 
-        function exportBackup() {
-            const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(db));
-            const dlAnchor = document.createElement('a');
-            dlAnchor.setAttribute("href", dataStr);
-            dlAnchor.setAttribute("download", "vinco_backup.json");
-            dlAnchor.click();
+    function deleteEmployee(idx) {
+        if (confirm('Delete this employee account?')) {
+            db.users.splice(idx, 1);
+            syncDB();
+            renderEmployees();
         }
+    }
 
-        function importBackup(e) {
-            const file = e.target.files[0];
-            if (file) {
-                const reader = new FileReader();
-                reader.onload = function(upload) {
-                    db = JSON.parse(upload.target.result);
-                    syncDB();
-                    alert('Restored successfully.');
-                    location.reload();
-                };
-                reader.readAsText(file);
-            }
+    function saveSystemEmail() {
+        db.email = document.getElementById('system-email').value;
+        syncDB();
+        alert('Email updated.');
+    }
+
+    function exportBackup() {
+        const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(db));
+        const dlAnchor = document.createElement('a');
+        dlAnchor.setAttribute("href", dataStr);
+        dlAnchor.setAttribute("download", "vinco_backup.json");
+        dlAnchor.click();
+    }
+
+    function importBackup(e) {
+        const file = e.target.files[0];
+        if (file) {
+            const reader = new FileReader();
+            reader.onload = function(upload) {
+                db = JSON.parse(upload.target.result);
+                syncDB();
+                alert('Restored successfully.');
+                location.reload();
+            };
+            reader.readAsText(file);
         }
+    }
 
-        function startCameraScan(target) {
-            const code = prompt("Scan Barcode / Enter Barcode:");
-            if (code) {
-                const cleanCode = code.trim().replace(/[^0-9]/g, '');
-                if (target === 'pos') {
-                    let matched = db.products.find(p => p.barcode === cleanCode || p.barcode === code.trim());
-                    if (matched) {
-                        addToCart(matched.id);
-                    } else {
-                        alert('No product found with barcode: ' + code);
-                    }
+    function startCameraScan(target) {
+        const code = prompt("Scan Barcode / Enter Barcode:");
+        if (code) {
+            const cleanCode = code.trim().replace(/[^0-9]/g, '');
+            if (target === 'pos') {
+                let matched = db.products.find(p => p.barcode === cleanCode || p.barcode === code.trim());
+                if (matched) {
+                    addToCart(matched.id);
                 } else {
-                    document.getElementById('inv-search').value = code.trim();
-                    renderInventoryTable();
+                    alert('No product found with barcode: ' + code);
                 }
+            } else {
+                document.getElementById('inv-search').value = code.trim();
+                renderInventoryTable();
             }
         }
+    }
 
-        document.addEventListener('DOMContentLoaded', () => {
-            updatePendingBadge();
+    document.addEventListener('DOMContentLoaded', () => {
+    const sidebarToggleBtn = document.getElementById('sidebar-toggle-btn');
+    const floatingToggleBtn = document.getElementById('floating-toggle-btn');
+    const appWrapper = document.getElementById('app-wrapper');
+
+    function toggleSidebar() {
+        appWrapper.classList.toggle('sidebar-collapsed');
+        // Show floating button when collapsed, hide when open
+        if (appWrapper.classList.contains('sidebar-collapsed')) {
+            floatingToggleBtn.style.display = 'block';
+        } else {
+            floatingToggleBtn.style.display = 'none';
+        }
+    }
+
+    if (sidebarToggleBtn) sidebarToggleBtn.addEventListener('click', toggleSidebar);
+    if (floatingToggleBtn) floatingToggleBtn.addEventListener('click', toggleSidebar);
+});
+
+   document.getElementById('loginForm').addEventListener('submit', async (e) => {
+    e.preventDefault();
+
+    const payload = {
+        username: document.getElementById('login-username').value.trim(),
+        password: document.getElementById('login-password').value.trim(),
+    };
+
+    try {
+        const response = await fetch('https://quickcheck-12.onrender.com/api/login', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
         });
-    </script>
+
+        const data = await response.json();
+
+        if (!response.ok) {
+            alert(data.message || 'Login failed');
+            return;
+        }
+
+        // 1. Save token
+        localStorage.setItem('token', data.token);
+        
+        // 2. FORCE UI TRANSITION IMMEDIATELY (Hide login, Show app)
+        const authWrapper = document.getElementById('auth-wrapper');
+        const appWrapper = document.getElementById('app-wrapper');
+
+        if (authWrapper) authWrapper.style.display = 'none';
+        if (appWrapper) appWrapper.style.display = 'flex';
+
+        // 3. Run post-login data loaders safely so they don't break the UI if they error out
+        try {
+            if (typeof updateSidebarUserDisplay === 'function') updateSidebarUserDisplay(data);
+            if (typeof loadProducts === 'function') loadProducts();
+        } catch (initError) {
+            console.warn('Post-login initialization warning:', initError);
+        }
+
+    } catch (error) {
+        console.error('Network or parsing error:', error);
+        alert('An error occurred during login. Check your connection.');
+    }
+});
+
+</script>
 </body>
 </html>
