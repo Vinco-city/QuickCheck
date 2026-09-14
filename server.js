@@ -103,6 +103,17 @@ app.get('/', (req, res) => {
     res.json({ message: "Vinco Supermarket API is running" });
 });
 
+app.get('/api/requests', (req, res) => {
+    res.json(db.requests || []);
+});
+
+app.post('/api/register', (req, res) => {
+    const newRequest = req.body;
+    db.requests.push(newRequest);
+    // Save to storage/database here
+    res.status(200).json({ success: true, message: "Registration submitted" });
+});
+
 // Authentication Routes
 app.post('/api/register', async (req, res) => {
     const { username, password, fullname, role, picture, avatar } = req.body;
