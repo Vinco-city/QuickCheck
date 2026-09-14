@@ -580,11 +580,53 @@
 }
 
       // Automatically pull fresh data from the server every 30 seconds
-setInterval(() => {
-    if (localStorage.getItem('token')) {
-        fetchServerData();
+let isSyncing = false;
+
+async function fetchServerData() {
+    if (isSyncing) return;
+    isSyncing = true;
+    
+    const token = localStorage.getItem('token');
+    if (!token) {
+        isSyncing = false;
+        return;
     }
-}, 30000);
+
+    const headers = { 'Authorization': `Bearer ${token}` };
+
+    try {
+        // Stagger or sequential fetch to avoid triggering rate limits (429)
+        const productsResponse = await fetch('https://quickcheck-12.onrender.com/api/products', { headers });
+        if (productsResponse.ok) {
+            const data = await productsResponse.json();
+            db.products = data.products || [];
+            if (typeof renderProducts === 'function') renderProducts();
+        }
+
+        const salesResponse = await fetch('https://quickcheck-12.onrender.com/api/sales', { headers });
+        if (salesResponse.ok) {
+            const data = await salesResponse.json();
+            db.sales = data.sales || [];
+        }
+
+        const usersResponse = await fetch('https://quickcheck-12.onrender.com/api/users', { headers });
+        if (usersResponse.ok) {
+            const data = await usersResponse.json();
+            db.users = data.users || [];
+            db.requests = data.requests || [];
+            if (typeof renderEmployees === 'function') renderEmployees();
+        }
+
+        if (typeof renderPOSGrid === 'function') renderPOSGrid();
+        if (typeof checkInventoryAlertsOnLogin === 'function') checkInventoryAlertsOnLogin();
+
+        console.log('Successfully synced data from server.');
+    } catch (error) {
+        console.error('Failed to sync data from backend:', error);
+    } finally {
+        isSyncing = false;
+    }
+}
 
     window.syncDB = function() {
         localStorage.setItem('vinco_db', JSON.stringify(db));
