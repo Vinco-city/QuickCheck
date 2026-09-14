@@ -480,6 +480,11 @@
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 <script>
+    (function() {
+    const savedTheme = localStorage.getItem('theme') || 'light';
+    document.documentElement.setAttribute('data-bs-theme', savedTheme);
+})();
+
     document.addEventListener('DOMContentLoaded', () => {
         const toggleBtn = document.getElementById('toggle-password-btn');
         if (toggleBtn) {
@@ -489,6 +494,11 @@
                     input.type = input.type === 'password' ? 'text' : 'password';
                 }
             });
+        }
+
+        // Fetch fresh data from server on startup if logged in / token exists
+        if (localStorage.getItem('token')) {
+            fetchServerData();
         }
     });
 
@@ -504,6 +514,36 @@
 
     let currentUser = null;
     let cart = [];
+
+    // Global function to fetch and sync data from the Render backend API
+    async function fetchServerData() {
+    try {
+        const token = localStorage.getItem('token');
+        const headers = {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`
+        };
+
+        const prodResponse = await fetch('https://quickcheck-12.onrender.com/api/products', { headers });
+        if (prodResponse.ok) {
+            db.products = await prodResponse.json();
+        }
+
+        const salesResponse = await fetch('https://quickcheck-12.onrender.com/api/sales', { headers });
+        if (salesResponse.ok) {
+            db.sales = await salesResponse.json();
+        }
+
+        // Refresh UI components if they exist on the current view
+        if (typeof renderProducts === 'function') renderProducts();
+        if (typeof renderPOSGrid === 'function') renderPOSGrid();
+        if (typeof checkInventoryAlertsOnLogin === 'function') checkInventoryAlertsOnLogin();
+
+        console.log('Successfully synced data from server.');
+    } catch (error) {
+        console.error('Failed to sync data from backend:', error);
+    }
+}
 
     window.syncDB = function() {
         localStorage.setItem('vinco_db', JSON.stringify(db));
@@ -928,11 +968,14 @@ window.updateSidebarUserDisplay = function() {
     }
 }
 
-        function toggleTheme() {
-            const html = document.documentElement;
-            const currentTheme = html.getAttribute('data-bs-theme');
-            html.setAttribute('data-bs-theme', currentTheme === 'light' ? 'dark' : 'light');
-        }
+       function toggleTheme() {
+    const html = document.documentElement;
+    const currentTheme = html.getAttribute('data-bs-theme') || 'light';
+    const newTheme = currentTheme === 'light' ? 'dark' : 'light';
+    
+    html.setAttribute('data-bs-theme', newTheme);
+    localStorage.setItem('theme', newTheme);
+}
 
         function renderPOSGrid() {
             const grid = document.getElementById('pos-grid');
@@ -1067,13 +1110,39 @@ window.updateSidebarUserDisplay = function() {
             document.getElementById('persistent-cart-total').innerText = `₦${total.toLocaleString()}`;
         }
 
-        function completeSale() {
+        async function completeSale() {
             if (cart.length === 0) return alert('Cart is empty');
             const total = cart.reduce((acc, item) => acc + (item.price * item.qty), 0);
+            
+            // Send the sale to the backend SQLite server database
+            try {
+                const response = await fetch('https://quickcheck-12.onrender.com/api/sales', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${localStorage.getItem('token')}`
+                    },
+                    body: JSON.stringify({
+                        total: total,
+                        items: cart
+                    })
+                });
+
+                if (!response.ok) {
+                    throw new Error('Failed to record sale on server');
+                }
+                await fetchServerData();
+            } catch (error) {
+                console.error('Checkout sync error:', error);
+                alert('Could not sync sale to the server.');
+                return;
+            }
+
             cart.forEach(item => {
                 const p = db.products.find(x => x.id === item.id);
                 if (p) p.stock -= item.qty;
             });
+            
             db.sales.push({ date: new Date().toISOString(), items: [...cart], total, paymentMethod: document.getElementById('payment-method').value });
             syncDB();
 
@@ -1092,10 +1161,15 @@ window.updateSidebarUserDisplay = function() {
 
     function renderInventoryTable() {
     const tbody = document.getElementById('inventory-table-body');
-    const query = document.getElementById('inv-search').value.toLowerCase();
+    const searchInput = document.getElementById('inv-search');
+    if (!tbody) return;
+    
+    const query = searchInput ? searchInput.value.toLowerCase() : '';
     tbody.innerHTML = '';
     
-    db.products.filter(p => p.name.toLowerCase().includes(query) || (p.barcode && p.barcode.toLowerCase().includes(query)) || p.sku.toLowerCase().includes(query)).forEach(p => {
+    const products = Array.isArray(db.products) ? db.products : [];
+    
+    products.filter(p => (p.name && p.name.toLowerCase().includes(query)) || (p.barcode && p.barcode.toLowerCase().includes(query)) || (p.sku && p.sku.toLowerCase().includes(query))).forEach(p => {
         let expiryStatus = '';
         if (p.expiryDate) {
             const days = (new Date(p.expiryDate) - new Date()) / (1000 * 60 * 60 * 24);
@@ -1107,12 +1181,12 @@ window.updateSidebarUserDisplay = function() {
         tr.innerHTML = `
             <td><img src="${p.image || 'https://placehold.co/150'}" width="40" height="40" style="object-fit:cover;"></td>
             <td><code>${p.barcode || 'N/A'}</code></td>
-            <td><strong>${p.name}</strong> ${expiryStatus}</td>
-            <td>${p.category}</td>
-            <td>${p.sku}</td>
-            <td>${p.stock} / ${p.limit}</td>
-            <td>${p.costPrice !== null ? '₦' + p.costPrice : 'Blank'}</td>
-            <td>${p.sellingPrice !== null ? '₦' + p.sellingPrice : 'Blank'}</td>
+            <td><strong>${p.name || 'Unnamed'}</strong> ${expiryStatus}</td>
+            <td>${p.category || 'General'}</td>
+            <td>${p.sku || 'N/A'}</td>
+            <td>${p.stock !== undefined ? p.stock : 0} / ${p.limit !== undefined ? p.limit : 5}</td>
+            <td>${p.costPrice !== null && p.costPrice !== undefined ? '₦' + Number(p.costPrice).toFixed(2) : 'Blank'}</td>
+            <td>${p.sellingPrice !== null && p.sellingPrice !== undefined ? '₦' + Number(p.sellingPrice).toFixed(2) : 'Blank'}</td>
             <td>${p.expiryDate || 'Blank'}</td>
             <td>
                 <button class="btn btn-sm btn-outline-warning me-1" onclick="openProductModal(${p.id})"><i class="bi bi-pencil"></i></button>
@@ -1139,14 +1213,17 @@ function renderProducts() {
     if (!tbody) return;
 
     tbody.innerHTML = '';
-    if (!db.products || db.products.length === 0) {
+    const products = Array.isArray(db.products) ? db.products : [];
+
+    if (products.length === 0) {
         tbody.innerHTML = `<tr><td colspan="5" class="text-center text-muted">No products found.</td></tr>`;
         return;
     }
 
-    db.products.forEach(p => {
-        const isLowStock = p.status === 'low_stock' || (p.stock > 0 && p.stock < 5);
-        const isOutStock = p.status === 'out_of_stock' || p.stock === 0;
+    products.forEach(p => {
+        const stock = p.stock !== undefined ? p.stock : 0;
+        const isLowStock = p.status === 'low_stock' || (stock > 0 && stock < 5);
+        const isOutStock = p.status === 'out_of_stock' || stock === 0;
 
         let rowClass = '';
         if (isOutStock) rowClass = 'table-danger';
@@ -1158,15 +1235,15 @@ function renderProducts() {
             <td>
                 <div class="d-flex align-items-center justify-content-between">
                     <div>
-                        <strong>${p.name}</strong><br>
-                        <small class="text-muted">SKU: ${p.sku}</small>
+                        <strong>${p.name || 'Unnamed'}</strong><br>
+                        <small class="text-muted">SKU: ${p.sku || 'N/A'}</small>
                     </div>
                     ${isLowStock ? '<span class="badge bg-dark text-warning ms-2"><i class="bi bi-exclamation-triangle"></i> Low Stock Alert</span>' : ''}
                     ${isOutStock ? '<span class="badge bg-dark text-danger ms-2"><i class="bi bi-x-octagon"></i> Out of Stock</span>' : ''}
                 </div>
             </td>
-            <td>₦${p.sellingPrice !== null ? Number(p.sellingPrice).toFixed(2) : '0.00'}</td>
-            <td><strong>${p.stock}</strong></td>
+            <td>₦${p.sellingPrice !== null && p.sellingPrice !== undefined ? Number(p.sellingPrice).toFixed(2) : '0.00'}</td>
+            <td><strong>${stock}</strong></td>
             <td>${getProductStatusBadge(p.status)}</td>
             <td>
                 <button class="btn btn-sm btn-outline-danger" onclick="deleteProduct(${p.id})">
@@ -1291,14 +1368,59 @@ function checkInventoryAlertsOnLogin() {
             renderPOSGrid();
         }
 
-        function deleteProduct(id) {
-            if (confirm('Delete this product?')) {
-                db.products = db.products.filter(x => x.id !== id);
-                syncDB();
-                renderInventoryTable();
-                renderPOSGrid();
+        async function deleteProduct(id) {
+    if (!confirm('Delete this product?')) return;
+
+    try {
+        const response = await fetch(`https://quickcheck-12.onrender.com/api/products/${id}`, {
+            method: 'DELETE',
+            headers: {
+                'Authorization': `Bearer ${localStorage.getItem('token')}`
             }
+        });
+
+        if (!response.ok) {
+            throw new Error('Failed to delete product from server');
         }
+
+        await fetchServerData();
+        if (typeof renderInventoryTable === 'function') renderInventoryTable();
+        if (typeof renderProducts === 'function') renderProducts();
+        if (typeof renderPOSGrid === 'function') renderPOSGrid();
+    } catch (error) {
+        console.error('Error deleting product:', error);
+        alert('Could not delete product from the server.');
+    }
+}
+
+       async function recordSaleOnServer(cartItems, grandTotal) {
+    try {
+        const response = await fetch('https://quickcheck-12.onrender.com/api/sales', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${localStorage.getItem('token')}`
+            },
+            body: JSON.stringify({
+                total: grandTotal,
+                items: cartItems
+            })
+        });
+
+        if (!response.ok) {
+            throw new Error('Failed to record sale on server');
+        }
+
+        const result = await response.json();
+        console.log('Sale recorded to backend database:', result);
+        
+        // Refresh sales list from server
+        await fetchServerData();
+    } catch (error) {
+        console.error('Checkout sync error:', error);
+        alert('Could not sync sale to the server.');
+    }
+}
 
         function renderAlerts() {
             const expiryList = document.getElementById('expiry-alert-list');
