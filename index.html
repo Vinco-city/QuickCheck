@@ -1541,43 +1541,15 @@ function checkInventoryAlertsOnLogin() {
             sale.items.forEach(cartItem => {
                 totalItemsSold += cartItem.qty || 0;
                 const prod = products.find(p => p.id === cartItem.id);
-                const unitCost = prod && prod.costPrice !== undefined ? prod.costPrice : 0;
+                const unitCost = prod && prod.costPrice !== undefined && prod.costPrice !== null ? prod.costPrice : 0;
                 totalCost += unitCost * (cartItem.qty || 0);
             });
         }
     });
 
-    const netProfit = totalRevenue - totalCost;
+    const grossProfit = totalRevenue - totalCost;
+    const profitMargin = totalRevenue > 0 ? ((grossProfit / totalRevenue) * 100).toFixed(1) : 0;
 
-    container.innerHTML = `
-        <div class="row g-3 mb-4">
-            <div class="col-md-4">
-                <div class="card bg-success text-white p-3 shadow-sm">
-                    <h5>Total Revenue</h5>
-                    <h3>$${totalRevenue.toFixed(2)}</h3>
-                </div>
-            </div>
-            <div class="col-md-4">
-                <div class="card bg-danger text-white p-3 shadow-sm">
-                    <h5>Total Cost</h5>
-                    <h3>$${totalCost.toFixed(2)}</h3>
-                </div>
-            </div>
-            <div class="col-md-4">
-                <div class="card bg-primary text-white p-3 shadow-sm">
-                    <h5>Net Profit</h5>
-                    <h3>$${netProfit.toFixed(2)}</h3>
-                </div>
-            </div>
-        </div>
-        <div class="card p-3 shadow-sm">
-            <h5>Sales Summary</h5>
-            <p>Total Items Sold: <strong>${totalItemsSold}</strong></p>
-            <p>Total Transactions: <strong>${sales.length}</strong></p>
-        </div>
-    `;
-}
-        function renderReports() {
     container.innerHTML = `
         <div class="row g-3 mb-4">
             <div class="col-md-3 col-sm-6">
@@ -1603,7 +1575,7 @@ function checkInventoryAlertsOnLogin() {
                 <div class="card p-3 border-warning shadow-sm h-100">
                     <div class="text-muted small">Units Sold</div>
                     <h4 class="text-dark fw-bold mb-0">${totalItemsSold}</h4>
-                    <small class="text-muted">Transactions: ${db.sales.length}</small>
+                    <small class="text-muted">Transactions: ${sales.length}</small>
                 </div>
             </div>
         </div>
@@ -1627,28 +1599,28 @@ function checkInventoryAlertsOnLogin() {
                         </tr>
                     </thead>
                     <tbody id="sales-breakdown-tbody">
-                        ${db.sales.length === 0 ? `<tr><td colspan="5" class="text-center text-muted py-4">No sales recorded yet.</td></tr>` : ''}
+                        ${sales.length === 0 ? `<tr><td colspan="5" class="text-center text-muted py-4">No sales recorded yet.</td></tr>` : ''}
                     </tbody>
                 </table>
             </div>
         </div>
     `;
 
-    if (db.sales.length > 0) {
+    if (sales.length > 0) {
         const tbody = document.getElementById('sales-breakdown-tbody');
         if (tbody) {
             tbody.innerHTML = '';
             
-            db.sales.slice().reverse().forEach(sale => {
+            sales.slice().reverse().forEach(sale => {
                 let saleCost = 0;
                 if (sale.items) {
                     sale.items.forEach(item => {
-                        const prod = db.products.find(p => p.id === item.id);
-                        const cPrice = prod && prod.costPrice !== null ? prod.costPrice : 0;
+                        const prod = products.find(p => p.id === item.id);
+                        const cPrice = prod && prod.costPrice !== null && prod.costPrice !== undefined ? prod.costPrice : 0;
                         saleCost += cPrice * item.qty;
                     });
                 }
-                const saleProfit = sale.total - saleCost;
+                const saleProfit = (sale.total || 0) - saleCost;
                 const itemCount = sale.items ? sale.items.reduce((acc, i) => acc + i.qty, 0) : 0;
 
                 const tr = document.createElement('tr');
@@ -1656,7 +1628,7 @@ function checkInventoryAlertsOnLogin() {
                     <td>${new Date(sale.date).toLocaleString()}</td>
                     <td><span class="badge bg-secondary">${sale.paymentMethod || 'Cash'}</span></td>
                     <td>${itemCount} units</td>
-                    <td class="fw-bold text-success">₦${sale.total.toLocaleString()}</td>
+                    <td class="fw-bold text-success">₦${(sale.total || 0).toLocaleString()}</td>
                     <td class="fw-bold text-primary">₦${saleProfit.toLocaleString()}</td>
                 `;
                 tbody.appendChild(tr);
