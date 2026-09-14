@@ -19,6 +19,7 @@ app.use(cors({
 }));
 
 app.use(express.json());
+app.use(express.static(__dirname));
 
 // Rate Limiting for Security
 const limiter = rateLimit({

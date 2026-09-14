@@ -482,14 +482,14 @@
 <script>
     // Paste the function here with your other API calls
     async function fetchAppData() {
-        try {
-            const response = await fetch('https://quickcheck-12.onrender.com/api/requests');
-            db.requests = await response.json();
-            renderEmployees(); // Automatically update the UI once data arrives
-        } catch (error) {
-            console.error("Failed to load requests:", error);
-        }
+    try {
+        const response = await fetch('/api/requests');
+        db.requests = await response.json();
+        renderEmployees();
+    } catch (error) {
+        console.error("Failed to load requests:", error);
     }
+}
 
     // Call it inside your main initialization block (e.g., window.onload or init)
     window.onload = function() {
