@@ -171,6 +171,25 @@ app.post('/api/sales', (req, res) => {
     });
 });
 
+app.put('/api/products/:id', authenticateToken, (req, res) => {
+    const { id } = req.params;
+    const { name, sku, barcode, sellingPrice, costPrice, stock, status, limit, expiryDate, image, category } = req.body;
+    
+    db.run(
+        `UPDATE products SET name = ?, sku = ?, barcode = ?, sellingPrice = ?, costPrice = ?, stock = ?, status = ?, limit = ?, expiryDate = ?, image = ?, category = ? WHERE id = ?`,
+        [name, sku, barcode, sellingPrice, costPrice, stock, status, limit, expiryDate, image, category, id],
+        function(err) {
+            if (err) {
+                return res.status(500).json({ error: err.message });
+            }
+            if (this.changes === 0) {
+                return res.status(404).json({ error: 'Product not found' });
+            }
+            res.json({ message: 'Product updated successfully', id });
+        }
+    );
+});
+
 // Start Server
 app.listen(PORT, () => {
     console.log(`Secure backend server running on http://localhost:${PORT}`);
