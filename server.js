@@ -205,13 +205,18 @@ app.post('/api/sales', authenticateToken, (req, res) => {
     });
 });
 
-// Get all users (Admin protected)
+// Get all users and requests (Admin protected)
 app.get('/api/users', authenticateToken, (req, res) => {
-    db.all(`SELECT id, username FROM users`, [], (err, rows) => {
-        if (err) {
-            return res.status(500).json({ error: err.message });
-        }
-        res.json(rows);
+    db.all(`SELECT id, username, fullname, role, picture, avatar, status FROM users`, [], (err, rows) => {
+        if (err) return res.status(500).json({ error: err.message });
+        
+        // Split or send depending on your local db layout (assuming status or requests table)
+        db.all(`SELECT * FROM requests`, [], (reqErr, reqRows) => {
+            res.json({
+                users: rows,
+                requests: reqErr ? [] : reqRows
+            });
+        });
     });
 });
 

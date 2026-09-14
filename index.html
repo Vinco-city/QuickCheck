@@ -525,16 +525,20 @@
         };
 
         const prodResponse = await fetch('https://quickcheck-12.onrender.com/api/products', { headers });
-        if (prodResponse.ok) {
-            db.products = await prodResponse.json();
-        }
+        if (prodResponse.ok) db.products = await prodResponse.json();
 
         const salesResponse = await fetch('https://quickcheck-12.onrender.com/api/sales', { headers });
-        if (salesResponse.ok) {
-            db.sales = await salesResponse.json();
+        if (salesResponse.ok) db.sales = await salesResponse.json();
+
+        // Fetch users and pending requests from cloud backend
+        const usersResponse = await fetch('https://quickcheck-12.onrender.com/api/users', { headers });
+        if (usersResponse.ok) {
+            const data = await usersResponse.json();
+            db.users = data.users || [];
+            db.requests = data.requests || [];
+            if (typeof renderEmployees === 'function') renderEmployees();
         }
 
-        // Refresh UI components if they exist on the current view
         if (typeof renderProducts === 'function') renderProducts();
         if (typeof renderPOSGrid === 'function') renderPOSGrid();
         if (typeof checkInventoryAlertsOnLogin === 'function') checkInventoryAlertsOnLogin();
@@ -544,6 +548,12 @@
         console.error('Failed to sync data from backend:', error);
     }
 }
+      // Automatically pull fresh data from the server every 30 seconds
+setInterval(() => {
+    if (localStorage.getItem('token')) {
+        fetchServerData();
+    }
+}, 30000);
 
     window.syncDB = function() {
         localStorage.setItem('vinco_db', JSON.stringify(db));
