@@ -1646,61 +1646,69 @@ function clearSalesData(period) {
 }
 
         function renderEmployees() {
-            const reqContainer = document.getElementById('pending-requests-container');
-            const tbody = document.getElementById('employee-table-body');
-            reqContainer.innerHTML = '';
-            tbody.innerHTML = '';
+    const reqContainer = document.getElementById('pending-requests-container');
+    const tbody = document.getElementById('employee-table-body');
+    
+    if (!reqContainer || !tbody) return;
 
-            if (db.requests.length === 0) {
-                reqContainer.innerHTML = `<p class="text-muted small mb-0">No pending registration requests at the moment.</p>`;
-            } else {
-                db.requests.forEach((req, idx) => {
-                    const picHtml = req.picture ? `<img src="${req.picture}" class="rounded-circle me-2" width="35" height="35" style="object-fit:cover;">` : `<span class="fs-4 me-2">${req.avatar}</span>`;
-                    reqContainer.innerHTML += `
-                        <div class="card p-3 mb-2 border-primary bg-light">
-                            <div class="d-flex justify-content-between align-items-center">
-                                <div>
-                                    ${picHtml}
-                                    <strong>${req.fullname}</strong> (<code class="text-dark">@${req.username}</code>) - <span class="badge bg-secondary">${req.role}</span>
-                                    <div class="small text-muted mt-1">Requested on: ${new Date(req.date).toLocaleString()}</div>
-                                </div>
-                                <div>
-                                    <button class="btn btn-sm btn-success me-1" onclick="approveRequest(${idx})"><i class="bi bi-check-lg me-1"></i> Approve</button>
-                                    <button class="btn btn-sm btn-outline-danger" onclick="rejectRequest(${idx})"><i class="bi bi-x-lg me-1"></i> Reject</button>
-                                </div>
-                            </div>
+    reqContainer.innerHTML = '';
+    tbody.innerHTML = '';
+
+    const requests = (window.db && db.requests) || [];
+    const users = (window.db && db.users) || [];
+
+    if (requests.length === 0) {
+        reqContainer.innerHTML = `<p class="text-muted small mb-0">No pending registration requests at the moment.</p>`;
+    } else {
+        requests.forEach((req, idx) => {
+            const picHtml = req.picture ? `<img src="${req.picture}" class="rounded-circle me-2" width="35" height="35" style="object-fit:cover;">` : `<span class="fs-4 me-2">${req.avatar || '👤'}</span>`;
+            reqContainer.innerHTML += `
+                <div class="card p-3 mb-2 border-primary bg-light">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            ${picHtml}
+                            <strong>${req.fullname || 'N/A'}</strong> (<code class="text-dark">@${req.username || ''}</code>) - <span class="badge bg-secondary">${req.role || 'Staff'}</span>
+                            <div class="small text-muted mt-1">Requested on: ${req.date ? new Date(req.date).toLocaleString() : 'N/A'}</div>
                         </div>
-                    `;
-                });
-            }
+                        <div>
+                            <button class="btn btn-sm btn-success me-1" onclick="approveRequest(${idx})"><i class="bi bi-check-lg me-1"></i> Approve</button>
+                            <button class="btn btn-sm btn-outline-danger" onclick="rejectRequest(${idx})"><i class="bi bi-x-lg me-1"></i> Reject</button>
+                        </div>
+                    </div>
+                </div>
+            `;
+        });
+    }
 
-            // Filter out Master Admin (role === 'admin') so they do not appear in the employee list table
-            const employeeUsers = db.users.filter(u => u.role !== 'admin');
+    const employeeUsers = users.filter(u => u.role !== 'admin');
 
-            if (employeeUsers.length === 0) {
-                tbody.innerHTML = `<tr><td colspan="6" class="text-center text-muted py-3">No active employee accounts found.</td></tr>`;
-            }
+    if (employeeUsers.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="6" class="text-center text-muted py-3">No active employee accounts found.</td></tr>`;
+    } else {
+        employeeUsers.forEach((u) => {
+            const globalIdx = users.findIndex(x => x.username === u.username);
+            const picHtml = u.picture ? `<img src="${u.picture}" class="rounded-circle" width="35" height="35" style="object-fit:cover;">` : `<span>${u.avatar || '👤'}</span>`;
+            const badgeColor = u.role === 'manager' ? 'bg-success' : (u.role === 'storekeeper' ? 'bg-info text-dark' : 'bg-primary');
+            tbody.innerHTML += `
+                <tr>
+                    <td>${picHtml}</td>
+                    <td>${u.fullname || 'N/A'}</td>
+                    <td><code>${u.username || ''}</code></td>
+                    <td>${u.password || '******'}</td>
+                    <td><span class="badge ${badgeColor}">${u.role || 'Staff'}</span></td>
+                    <td>
+                        <button class="btn btn-sm btn-outline-warning me-1" onclick="openUserModal('${u.username}')"><i class="bi bi-pencil"></i></button>
+                        <button class="btn btn-sm btn-outline-danger" onclick="deleteEmployee(${globalIdx})"><i class="bi bi-trash"></i></button>
+                    </td>
+                </tr>
+            `;
+        });
+    }
 
-            employeeUsers.forEach((u) => {
-                const globalIdx = db.users.findIndex(x => x.username === u.username);
-                const picHtml = u.picture ? `<img src="${u.picture}" class="rounded-circle" width="35" height="35" style="object-fit:cover;">` : `<span>${u.avatar || '👤'}</span>`;
-                const badgeColor = u.role === 'manager' ? 'bg-success' : (u.role === 'storekeeper' ? 'bg-info text-dark' : 'bg-primary');
-                tbody.innerHTML += `
-                    <tr>
-                        <td>${picHtml}</td>
-                        <td>${u.fullname || 'N/A'}</td>
-                        <td><code>${u.username}</code></td>
-                        <td>${u.password}</td>
-                        <td><span class="badge ${badgeColor}">${u.role}</span></td>
-                        <td>
-                            <button class="btn btn-sm btn-outline-warning me-1" onclick="openUserModal('${u.username}')"><i class="bi bi-pencil"></i></button>
-                            <button class="btn btn-sm btn-outline-danger" onclick="deleteEmployee(${globalIdx})"><i class="bi bi-trash"></i></button>
-                        </td>
-                    </tr>
-                `;
-            });
-            updatePendingBadge();
-        }
+    if (typeof updatePendingBadge === 'function') {
+        updatePendingBadge();
+    }
+}
         
 
         function openUserModal(username = null) {
