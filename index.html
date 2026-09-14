@@ -825,12 +825,18 @@ window.updateSidebarUserDisplay = function() {
         }
 
         function handleLogout() {
-            currentUser = null;
-            document.getElementById('auth-wrapper').style.display = 'flex';
-            document.getElementById('app-wrapper').style.display = 'none';
-            document.getElementById('login-window').querySelector('form').reset();
-            switchAuthRoute('login');
-        }
+    currentUser = null;
+    localStorage.removeItem('token'); // Corrected: removed 'currentUser' and added 'token'
+    localStorage.removeItem('user');  // Corrected: removed 'currentUser' and added 'user' to match what you saved during login
+    document.getElementById('auth-wrapper').style.display = 'flex';
+    document.getElementById('app-wrapper').style.display = 'none';
+    
+    // Corrected: safely find the login form to reset it instead of relying on '#login-window'
+    const loginForm = document.getElementById('loginForm');
+    if (loginForm) loginForm.reset();
+    
+    if (typeof switchAuthRoute === 'function') switchAuthRoute('login');
+}
 
         window.togglePasswordVisibility = function(fieldId) {
     const input = document.getElementById(fieldId || 'login-password');
@@ -916,8 +922,11 @@ window.updateSidebarUserDisplay = function() {
         }
 
         function toggleSidebar() {
-            document.getElementById('sidebar').classList.toggle('active');
-        }
+    const sidebar = document.getElementById('sidebar');
+    if (sidebar) {
+        sidebar.classList.toggle('active');
+    }
+}
 
         function toggleTheme() {
             const html = document.documentElement;
@@ -1318,6 +1327,9 @@ function checkInventoryAlertsOnLogin() {
         let totalCost = 0;
         let totalItemsSold = 0;
 
+        const sales = (window.db && db.sales) || [];
+        const products = (window.db && db.products) || [];
+
         db.sales.forEach(sale => {
             totalRevenue += sale.total || 0;
             if (sale.items && Array.isArray(sale.items)) {
@@ -1664,17 +1676,42 @@ function clearSalesData(period) {
     const appWrapper = document.getElementById('app-wrapper');
 
     function toggleSidebar() {
+    if (appWrapper) {
         appWrapper.classList.toggle('sidebar-collapsed');
         // Show floating button when collapsed, hide when open
-        if (appWrapper.classList.contains('sidebar-collapsed')) {
-            floatingToggleBtn.style.display = 'block';
-        } else {
-            floatingToggleBtn.style.display = 'none';
+        if (floatingToggleBtn) {
+            if (appWrapper.classList.contains('sidebar-collapsed')) {
+                floatingToggleBtn.style.display = 'block';
+            } else {
+                floatingToggleBtn.style.display = 'none';
+            }
         }
     }
+}
 
-    if (sidebarToggleBtn) sidebarToggleBtn.addEventListener('click', toggleSidebar);
-    if (floatingToggleBtn) floatingToggleBtn.addEventListener('click', toggleSidebar);
+if (sidebarToggleBtn) sidebarToggleBtn.addEventListener('click', toggleSidebar);
+if (floatingToggleBtn) floatingToggleBtn.addEventListener('click', toggleSidebar);
+});
+
+    document.addEventListener('DOMContentLoaded', () => {
+    const token = localStorage.getItem('token');
+    const userDataStr = localStorage.getItem('user'); // Matched to your login storage key ('user')
+
+    if (token) {
+        const authWrapper = document.getElementById('auth-wrapper');
+        const appWrapper = document.getElementById('app-wrapper');
+
+        if (authWrapper) authWrapper.style.display = 'none';
+        if (appWrapper) appWrapper.style.display = 'flex';
+
+        try {
+            const data = userDataStr && userDataStr !== 'undefined' ? JSON.parse(userDataStr) : {};
+            if (typeof updateSidebarUserDisplay === 'function') updateSidebarUserDisplay(data);
+            if (typeof loadProducts === 'function') loadProducts();
+        } catch (initError) {
+            console.warn('Session restoration initialization warning:', initError);
+        }
+    }
 });
 
    document.getElementById('loginForm').addEventListener('submit', async (e) => {
@@ -1699,9 +1736,10 @@ function clearSalesData(period) {
             return;
         }
 
-        // 1. Save token
+        // 1. Save token and user payload to localStorage for session persistence
         localStorage.setItem('token', data.token);
-        
+        localStorage.setItem('user', JSON.stringify(data.user));
+
         // 2. FORCE UI TRANSITION IMMEDIATELY (Hide login, Show app)
         const authWrapper = document.getElementById('auth-wrapper');
         const appWrapper = document.getElementById('app-wrapper');
