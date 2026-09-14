@@ -548,6 +548,37 @@
         console.error('Failed to sync data from backend:', error);
     }
 }
+
+    async function submitEmployeeSelfRegistration(event) {
+    event.preventDefault();
+
+    const fullname = document.getElementById('reg-fullname').value;
+    const username = document.getElementById('reg-username').value;
+    const password = document.getElementById('reg-password').value;
+    const role = document.getElementById('reg-role').value;
+    const avatar = document.getElementById('reg-avatar').value || '🧑‍💼';
+    const picture = document.getElementById('reg-image-data').value || '';
+
+    try {
+        const response = await fetch('https://quickcheck-12.onrender.com/api/register', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ username, password, fullname, role, avatar, picture })
+        });
+
+        const data = await response.json();
+        if (response.ok) {
+            alert('Account request submitted successfully! Seeking approval from the administrator.');
+            switchAuthRoute('login');
+        } else {
+            alert('Error: ' + (data.error || 'Registration failed'));
+        }
+    } catch (error) {
+        console.error('Registration network error:', error);
+        alert('Failed to connect to the server. Please check your connection.');
+    }
+}
+
       // Automatically pull fresh data from the server every 30 seconds
 setInterval(() => {
     if (localStorage.getItem('token')) {
