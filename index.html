@@ -1724,37 +1724,80 @@ function clearSalesData(period) {
             alert('User account saved successfully!');
         }
 
-        function approveRequest(idx) {
-            const req = db.requests.splice(idx, 1)[0];
-            db.users.push({
-                username: req.username,
-                password: req.password,
-                role: req.role || 'cashier',
-                avatar: req.avatar,
-                picture: req.picture || '',
-                status: 'active',
-                fullname: req.fullname
-            });
-            syncDB();
-            renderEmployees();
+        async function approveRequest(idx) {
+    const req = db.requests[idx];
+    if (!req) return;
+
+    try {
+        const token = localStorage.getItem('token');
+        const response = await fetch(`https://quickcheck-12.onrender.com/api/requests/${req.id}/approve`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`
+            }
+        });
+
+        if (response.ok) {
+            await fetchServerData();
             alert(`Employee @${req.username} has been approved as ${req.role} and can now log in.`);
+        } else {
+            console.error('Failed to approve request on server');
         }
+    } catch (error) {
+        console.error('Error approving request:', error);
+    }
+}
 
-       function rejectRequest(idx) {
-        if (confirm('Reject and delete this registration request?')) {
-            db.requests.splice(idx, 1);
-            syncDB();
-            renderEmployees();
+async function rejectRequest(idx) {
+    const req = db.requests[idx];
+    if (!req) return;
+
+    if (confirm('Reject and delete this registration request?')) {
+        try {
+            const token = localStorage.getItem('token');
+            const response = await fetch(`https://quickcheck-12.onrender.com/api/requests/${req.id}`, {
+                method: 'DELETE',
+                headers: {
+                    'Authorization': `Bearer ${token}`
+                }
+            });
+
+            if (response.ok) {
+                await fetchServerData();
+            } else {
+                console.error('Failed to reject request on server');
+            }
+        } catch (error) {
+            console.error('Error rejecting request:', error);
         }
     }
+}
 
-    function deleteEmployee(idx) {
-        if (confirm('Delete this employee account?')) {
-            db.users.splice(idx, 1);
-            syncDB();
-            renderEmployees();
+async function deleteEmployee(idx) {
+    const user = db.users[idx];
+    if (!user) return;
+
+    if (confirm('Delete this employee account?')) {
+        try {
+            const token = localStorage.getItem('token');
+            const response = await fetch(`https://quickcheck-12.onrender.com/api/users/${user.id}`, {
+                method: 'DELETE',
+                headers: {
+                    'Authorization': `Bearer ${token}`
+                }
+            });
+
+            if (response.ok) {
+                await fetchServerData();
+            } else {
+                console.error('Failed to delete employee on server');
+            }
+        } catch (error) {
+            console.error('Error deleting employee:', error);
         }
     }
+}
 
     function saveSystemEmail() {
         db.email = document.getElementById('system-email').value;

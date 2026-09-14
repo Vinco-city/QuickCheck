@@ -220,6 +220,40 @@ app.get('/api/users', authenticateToken, (req, res) => {
     });
 });
 
+// Approve a registration request
+app.post('/api/requests/:id/approve', authenticateToken, (req, res) => {
+    const requestId = req.params.id;
+    
+    // 1. Get the request data
+    db.get(`SELECT * FROM requests WHERE id = ?`, [requestId], (err, request) => {
+        if (err || !request) return res.status(404).json({ error: "Request not found" });
+
+        // 2. Insert into users table
+        db.run(
+            `INSERT INTO users (username, fullname, password, role, picture, avatar) VALUES (?, ?, ?, ?, ?, ?)`,
+            [request.username, request.fullname, request.password, request.role, request.picture, request.avatar],
+            function(insErr) {
+                if (insErr) return res.status(500).json({ error: insErr.message });
+
+                // 3. Delete from requests table
+                db.run(`DELETE FROM requests WHERE id = ?`, [requestId], (delErr) => {
+                    if (delErr) return res.status(500).json({ error: delErr.message });
+                    res.json({ message: "User approved successfully" });
+                });
+            }
+        );
+    });
+});
+
+// Reject/Delete a registration request
+app.delete('/api/requests/:id', authenticateToken, (req, res) => {
+    const requestId = req.params.id;
+    db.run(`DELETE FROM requests WHERE id = ?`, [requestId], function(err) {
+        if (err) return res.status(500).json({ error: err.message });
+        res.json({ message: "Request rejected successfully" });
+    });
+});
+
 // Start Server
 app.listen(PORT, () => {
     console.log(`Secure backend server running on http://localhost:${PORT}`);
