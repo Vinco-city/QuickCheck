@@ -1483,62 +1483,58 @@ function checkInventoryAlertsOnLogin() {
         }
 
         function renderReports() {
-        const container = document.getElementById('reports-content');
-        if (!container) return;
+    const container = document.getElementById('reports-content');
+    if (!container) return;
 
-        let totalRevenue = 0;
-        let totalCost = 0;
-        let totalItemsSold = 0;
+    let totalRevenue = 0;
+    let totalCost = 0;
+    let totalItemsSold = 0;
 
-        const sales = (window.db && db.sales) || [];
-        const products = (window.db && db.products) || [];
+    const sales = (window.db && db.sales) || [];
+    const products = (window.db && db.products) || [];
 
-        db.sales.forEach(sale => {
-            totalRevenue += sale.total || 0;
-            if (sale.items && Array.isArray(sale.items)) {
-                sale.items.forEach(cartItem => {
-                    totalItemsSold += cartItem.qty;
-                    const prod = db.products.find(p => p.id === cartItem.id);
-                    const unitCost = prod && prod.costPrice !== null ? prod.costPrice : 0;
-                    totalCost += unitCost * cartItem.qty;
-                });
-            }
-        });
+    sales.forEach(sale => {
+        totalRevenue += sale.total || 0;
+        if (sale.items && Array.isArray(sale.items)) {
+            sale.items.forEach(cartItem => {
+                totalItemsSold += cartItem.qty || 0;
+                const prod = products.find(p => p.id === cartItem.id);
+                const unitCost = prod && prod.costPrice !== undefined ? prod.costPrice : 0;
+                totalCost += unitCost * (cartItem.qty || 0);
+            });
+        }
+    });
 
-        const grossProfit = totalRevenue - totalCost;
-        const profitMargin = totalRevenue > 0 ? ((grossProfit / totalRevenue) * 100).toFixed(1) : 0;
+    const netProfit = totalRevenue - totalCost;
 
-        container.innerHTML = `
-            <div class="row g-3 mb-4">
-                <div class="col-md-3 col-sm-6">
-                    <div class="card p-3 border-success shadow-sm h-100">
-                        <div class="text-muted small">Total Revenue</div>
-                        <h4 class="text-success fw-bold mb-0">₦${totalRevenue.toLocaleString()}</h4>
-                    </div>
-                </div>
-                <div class="col-md-3 col-sm-6">
-                    <div class="card p-3 border-danger shadow-sm h-100">
-                        <div class="text-muted small">Total Cost of Goods</div>
-                        <h4 class="text-danger fw-bold mb-0">₦${totalCost.toLocaleString()}</h4>
-                    </div>
-                </div>
-                <div class="col-md-3 col-sm-6">
-                    <div class="card p-3 border-primary shadow-sm h-100">
-                        <div class="text-muted small">Net Gross Profit</div>
-                        <h4 class="text-primary fw-bold mb-0">₦${grossProfit.toLocaleString()}</h4>
-                        <small class="text-muted">Margin: ${profitMargin}%</small>
-                    </div>
-                </div>
-                <div class="col-md-3 col-sm-6">
-                    <div class="card p-3 border-warning shadow-sm h-100">
-                        <div class="text-muted small">Units Sold</div>
-                        <h4 class="text-dark fw-bold mb-0">${totalItemsSold}</h4>
-                        <small class="text-muted">Transactions: ${db.sales.length}</small>
-                    </div>
+    container.innerHTML = `
+        <div class="row g-3 mb-4">
+            <div class="col-md-4">
+                <div class="card bg-success text-white p-3 shadow-sm">
+                    <h5>Total Revenue</h5>
+                    <h3>$${totalRevenue.toFixed(2)}</h3>
                 </div>
             </div>
-        `;
-    }
+            <div class="col-md-4">
+                <div class="card bg-danger text-white p-3 shadow-sm">
+                    <h5>Total Cost</h5>
+                    <h3>$${totalCost.toFixed(2)}</h3>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="card bg-primary text-white p-3 shadow-sm">
+                    <h5>Net Profit</h5>
+                    <h3>$${netProfit.toFixed(2)}</h3>
+                </div>
+            </div>
+        </div>
+        <div class="card p-3 shadow-sm">
+            <h5>Sales Summary</h5>
+            <p>Total Items Sold: <strong>${totalItemsSold}</strong></p>
+            <p>Total Transactions: <strong>${sales.length}</strong></p>
+        </div>
+    `;
+}
         function renderReports() {
     container.innerHTML = `
         <div class="row g-3 mb-4">
