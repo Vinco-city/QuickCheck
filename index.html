@@ -481,9 +481,13 @@
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 <script>
     // Paste the function here with your other API calls
-    async function fetchAppData() {
+    const API_URL = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1' 
+    ? 'http://localhost:3000/api/requests' 
+    : 'https://quickcheck-12.onrender.com/api/requests';
+
+async function fetchAppData() {
     try {
-        const response = await fetch('/api/requests');
+        const response = await fetch(API_URL);
         db.requests = await response.json();
         renderEmployees();
     } catch (error) {
