@@ -53,7 +53,8 @@ const db = new sqlite3.Database('./database.sqlite', (err) => {
             status TEXT,
             itemLimit INTEGER,
             expiryDate TEXT,
-            image TEXT
+            image TEXT,
+            category TEXT
         )`);
 
         // Sales table
@@ -65,6 +66,20 @@ const db = new sqlite3.Database('./database.sqlite', (err) => {
         )`);
     }
 });
+
+// Authentication Middleware
+function authenticateToken(req, res, next) {
+    const authHeader = req.headers['authorization'];
+    const token = authHeader && authHeader.split(' ')[1];
+    
+    if (!token) return res.status(401).json({ error: 'Access token required' });
+
+    jwt.verify(token, JWT_SECRET, (err, user) => {
+        if (err) return res.status(403).json({ error: 'Invalid or expired token' });
+        req.user = user;
+        next();
+    });
+}
 
 // Root Route
 app.get('/', (req, res) => {
@@ -125,10 +140,10 @@ app.get('/api/products', (req, res) => {
     });
 });
 
-app.post('/api/products', (req, res) => {
-    const { name, sku, barcode, sellingPrice, costPrice, stock, status, limit, expiryDate, image } = req.body;
-    const query = `INSERT INTO products (name, sku, barcode, sellingPrice, costPrice, stock, status, itemLimit, expiryDate, image) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`;
-    db.run(query, [name, sku, barcode, sellingPrice, costPrice, stock, status, limit, expiryDate, image], function(err) {
+app.post('/api/products', authenticateToken, (req, res) => {
+    const { name, sku, barcode, sellingPrice, costPrice, stock, status, limit, expiryDate, image, category } = req.body;
+    const query = `INSERT INTO products (name, sku, barcode, sellingPrice, costPrice, stock, status, itemLimit, expiryDate, image, category) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`;
+    db.run(query, [name, sku, barcode, sellingPrice, costPrice, stock, status, limit, expiryDate, image, category || 'General'], function(err) {
         if (err) {
             return res.status(500).json({ error: err.message });
         }
@@ -136,7 +151,7 @@ app.post('/api/products', (req, res) => {
     });
 });
 
-app.delete('/api/products/:id', (req, res) => {
+app.delete('/api/products/:id', authenticateToken, (req, res) => {
     const { id } = req.params;
     db.run(`DELETE FROM products WHERE id = ?`, [id], function(err) {
         if (err) {
@@ -146,38 +161,13 @@ app.delete('/api/products/:id', (req, res) => {
     });
 });
 
-// Sales API Routes
-app.get('/api/sales', (req, res) => {
-    db.all(`SELECT * FROM sales`, [], (err, rows) => {
-        if (err) {
-            if (err) return res.status(500).json({ error: err.message });
-        }
-        const parsedRows = rows.map(row => ({
-            ...row,
-            items: JSON.parse(row.items || '[]')
-        }));
-        res.json(parsedRows);
-    });
-});
-
-app.post('/api/sales', (req, res) => {
-    const { total, items } = req.body;
-    const itemsString = JSON.stringify(items || []);
-    db.run(`INSERT INTO sales (total, items) VALUES (?, ?)`, [total, itemsString], function(err) {
-        if (err) {
-            return res.status(500).json({ error: err.message });
-        }
-        res.status(201).json({ message: 'Sale recorded', id: this.lastID });
-    });
-});
-
 app.put('/api/products/:id', authenticateToken, (req, res) => {
     const { id } = req.params;
     const { name, sku, barcode, sellingPrice, costPrice, stock, status, limit, expiryDate, image, category } = req.body;
     
     db.run(
-        `UPDATE products SET name = ?, sku = ?, barcode = ?, sellingPrice = ?, costPrice = ?, stock = ?, status = ?, limit = ?, expiryDate = ?, image = ?, category = ? WHERE id = ?`,
-        [name, sku, barcode, sellingPrice, costPrice, stock, status, limit, expiryDate, image, category, id],
+        `UPDATE products SET name = ?, sku = ?, barcode = ?, sellingPrice = ?, costPrice = ?, stock = ?, status = ?, itemLimit = ?, expiryDate = ?, image = ?, category = ? WHERE id = ?`,
+        [name, sku, barcode, sellingPrice, costPrice, stock, status, limit, expiryDate, image, category || 'General', id],
         function(err) {
             if (err) {
                 return res.status(500).json({ error: err.message });
@@ -188,6 +178,31 @@ app.put('/api/products/:id', authenticateToken, (req, res) => {
             res.json({ message: 'Product updated successfully', id });
         }
     );
+});
+
+// Sales API Routes
+app.get('/api/sales', authenticateToken, (req, res) => {
+    db.all(`SELECT * FROM sales`, [], (err, rows) => {
+        if (err) {
+            return res.status(500).json({ error: err.message });
+        }
+        const parsedRows = rows.map(row => ({
+            ...row,
+            items: JSON.parse(row.items || '[]')
+        }));
+        res.json(parsedRows);
+    });
+});
+
+app.post('/api/sales', authenticateToken, (req, res) => {
+    const { total, items } = req.body;
+    const itemsString = JSON.stringify(items || []);
+    db.run(`INSERT INTO sales (total, items) VALUES (?, ?)`, [total, itemsString], function(err) {
+        if (err) {
+            return res.status(500).json({ error: err.message });
+        }
+        res.status(201).json({ message: 'Sale recorded', id: this.lastID });
+    });
 });
 
 // Start Server
