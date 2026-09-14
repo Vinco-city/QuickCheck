@@ -205,6 +205,16 @@ app.post('/api/sales', authenticateToken, (req, res) => {
     });
 });
 
+// Get all users (Admin protected)
+app.get('/api/users', authenticateToken, (req, res) => {
+    db.all(`SELECT id, username FROM users`, [], (err, rows) => {
+        if (err) {
+            return res.status(500).json({ error: err.message });
+        }
+        res.json(rows);
+    });
+});
+
 // Start Server
 app.listen(PORT, () => {
     console.log(`Secure backend server running on http://localhost:${PORT}`);
