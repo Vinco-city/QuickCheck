@@ -34,11 +34,28 @@ const db = new sqlite3.Database('./database.sqlite', (err) => {
     } else {
         console.log('Connected to SQLite database.');
         
-        // Users table
+        // Users table (Updated with full profile columns)
         db.run(`CREATE TABLE IF NOT EXISTS users (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             username TEXT UNIQUE,
-            password TEXT
+            password TEXT,
+            fullname TEXT,
+            role TEXT,
+            picture TEXT,
+            avatar TEXT,
+            status TEXT DEFAULT 'active'
+        )`);
+
+        // Requests table (Added for tracking pending signups)
+        db.run(`CREATE TABLE IF NOT EXISTS requests (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            username TEXT UNIQUE,
+            password TEXT,
+            fullname TEXT,
+            role TEXT,
+            picture TEXT,
+            avatar TEXT,
+            date DATETIME DEFAULT CURRENT_TIMESTAMP
         )`);
 
         // Products table
@@ -88,19 +105,24 @@ app.get('/', (req, res) => {
 
 // Authentication Routes
 app.post('/api/register', async (req, res) => {
-    const { username, password } = req.body;
+    const { username, password, fullname, role, picture, avatar } = req.body;
     if (!username || !password) {
         return res.status(400).json({ error: 'Username and password are required' });
     }
 
     try {
         const hashedPassword = await bcrypt.hash(password, 10);
-        db.run(`INSERT INTO users (username, password) VALUES (?, ?)`, [username, hashedPassword], function(err) {
-            if (err) {
-                return res.status(400).json({ error: 'Username already exists or database error' });
+        // Save incoming registrations directly to pending requests queue
+        db.run(
+            `INSERT INTO requests (username, password, fullname, role, picture, avatar) VALUES (?, ?, ?, ?, ?, ?)`,
+            [username, hashedPassword, fullname || username, role || 'cashier', picture || '', avatar || '👤'],
+            function(err) {
+                if (err) {
+                    return res.status(400).json({ error: 'Username already exists or database error' });
+                }
+                res.status(201).json({ message: 'Registration request submitted successfully', id: this.lastID });
             }
-            res.status(201).json({ message: 'User registered successfully', userId: this.lastID });
-        });
+        );
     } catch (err) {
         res.status(500).json({ error: 'Internal server error' });
     }
@@ -125,7 +147,7 @@ app.post('/api/login', (req, res) => {
             return res.status(400).json({ error: 'Invalid username or password' });
         }
 
-        const token = jwt.sign({ id: user.id, username: user.username }, JWT_SECRET, { expiresIn: '1h' });
+        const token = jwt.sign({ id: user.id, username: user.username, role: user.role }, JWT_SECRET, { expiresIn: '12h' });
         res.json({ message: 'Login successful', token });
     });
 });
@@ -210,7 +232,6 @@ app.get('/api/users', authenticateToken, (req, res) => {
     db.all(`SELECT id, username, fullname, role, picture, avatar, status FROM users`, [], (err, rows) => {
         if (err) return res.status(500).json({ error: err.message });
         
-        // Split or send depending on your local db layout (assuming status or requests table)
         db.all(`SELECT * FROM requests`, [], (reqErr, reqRows) => {
             res.json({
                 users: rows,
@@ -220,22 +241,28 @@ app.get('/api/users', authenticateToken, (req, res) => {
     });
 });
 
+// Delete an active employee account
+app.delete('/api/users/:id', authenticateToken, (req, res) => {
+    const userId = req.params.id;
+    db.run(`DELETE FROM users WHERE id = ?`, [userId], function(err) {
+        if (err) return res.status(500).json({ error: err.message });
+        res.json({ message: "Employee deleted successfully" });
+    });
+});
+
 // Approve a registration request
 app.post('/api/requests/:id/approve', authenticateToken, (req, res) => {
     const requestId = req.params.id;
     
-    // 1. Get the request data
     db.get(`SELECT * FROM requests WHERE id = ?`, [requestId], (err, request) => {
         if (err || !request) return res.status(404).json({ error: "Request not found" });
 
-        // 2. Insert into users table
         db.run(
-            `INSERT INTO users (username, fullname, password, role, picture, avatar) VALUES (?, ?, ?, ?, ?, ?)`,
-            [request.username, request.fullname, request.password, request.role, request.picture, request.avatar],
+            `INSERT INTO users (username, password, fullname, role, picture, avatar, status) VALUES (?, ?, ?, ?, ?, ?, 'active')`,
+            [request.username, request.password, request.fullname, request.role, request.picture, request.avatar],
             function(insErr) {
                 if (insErr) return res.status(500).json({ error: insErr.message });
 
-                // 3. Delete from requests table
                 db.run(`DELETE FROM requests WHERE id = ?`, [requestId], (delErr) => {
                     if (delErr) return res.status(500).json({ error: delErr.message });
                     res.json({ message: "User approved successfully" });
